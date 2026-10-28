@@ -1,0 +1,17 @@
+{
+  "report_type": "Final Year Project Report",
+  "title": "AutoPark",
+  "subtitle": "A Camera-Based Smart Parking System with Automated Number Plate Recognition and Micro-Actuated Boom Barriers",
+  "team": [
+    "[Team Member 1] — [USN]",
+    "[Team Member 2] — [USN]",
+    "[Team Member 3] — [USN]",
+    "[Team Member 4] — [USN]"
+  ],
+  "guide": "[Project Guide]",
+  "department": "Department of Computer Science and Engineering",
+  "institution": "[Institution Name]",
+  "place": "[City]",
+  "month_year": "[Month Year]",
+  "academic_year": "[2025–26]"
+}
