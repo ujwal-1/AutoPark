@@ -44,8 +44,10 @@ export const LiveCameraFeed: React.FC<DetectionPanelProps> = ({
   const [imgTimestamp, setImgTimestamp] = useState<number>(Date.now());
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
 
-  const latestEntryDiag = diagnostics.filter((d) => d.camera === 'ENTRY').slice(-1)[0];
-  const latestExitDiag = diagnostics.filter((d) => d.camera === 'EXIT').slice(-1)[0];
+  // Defensive: a malformed payload must not take the whole console down.
+  const diagList = Array.isArray(diagnostics) ? diagnostics : [];
+  const latestEntryDiag = diagList.filter((d) => d.camera === 'ENTRY').slice(-1)[0];
+  const latestExitDiag = diagList.filter((d) => d.camera === 'EXIT').slice(-1)[0];
 
   const handleRefresh = async () => {
     setIsRefreshing(true);

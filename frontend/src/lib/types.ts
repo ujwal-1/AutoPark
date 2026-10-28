@@ -39,7 +39,8 @@ export interface ExitReceiptData {
   slot: string;
   plateNumber: string;
   durationFormatted: string;
-  billedAmount: number;
+  /** null when the backend did not report a billed amount */
+  billedAmount: number | null;
   exitTime: string;
   /** true while the vehicle is still parked — no exit has been recorded yet */
   active?: boolean;

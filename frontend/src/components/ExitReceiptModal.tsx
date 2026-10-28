@@ -82,7 +82,7 @@ export const ExitReceiptModal: React.FC<ExitReceiptModalProps> = ({ receipt, onC
                   {isActive ? 'Estimated Fee (Standard Rate)' : 'Parking Fee (Standard Rate)'}
                 </span>
                 <span className="font-black text-white text-xl font-mono">
-                  ₹{receipt.billedAmount}.00
+                  {receipt.billedAmount == null ? '—' : `₹${receipt.billedAmount}.00`}
                 </span>
               </div>
 

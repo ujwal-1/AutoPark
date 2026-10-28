@@ -137,30 +137,33 @@ export default function PassPage() {
     ws.onmessage = (event) => {
       try {
         const msg = JSON.parse(event.data);
+        // Every broadcast nests its payload under `data`.
+        const data = msg.data ?? {};
 
         if (msg.type === 'barrier.entry') {
           setBarrierAlert({
             gate: 'entry',
-            action: msg.action || 'OPEN',
-            slot: msg.slot,
-            plate: msg.plate,
-            message: `Entry Boom Barrier actuated to 90°! Gate open for ${msg.plate}. Proceed to Slot ${msg.slot}.`,
+            action: data.action || 'OPEN',
+            slot: data.slot,
+            plate: data.plate,
+            message: `Entry Boom Barrier actuated to 90°! Gate open for ${data.plate ?? 'vehicle'}. Proceed to Slot ${data.slot ?? '—'}.`,
           });
           if (token) fetchStatus(token);
           setTimeout(() => setBarrierAlert(null), 10000);
         }
 
-        if (msg.type === 'barrier.exit' || msg.type === 'parking.exit') {
+        if (msg.type === 'vehicle.exited' || msg.type === 'barrier.exit') {
+          const plate = data.plate ?? data.plate_number;
           if (
             statusData?.active_session &&
-            msg.plate === statusData.active_session.plate_number
+            plate &&
+            plate === statusData.active_session.plate_number
           ) {
-            const duration = msg.billing?.duration_minutes ?? Math.max(1, Math.round(elapsedSeconds / 60));
             setReceiptData({
-              slot: msg.slot || statusData.active_session.slot_number,
-              plateNumber: msg.plate,
-              durationFormatted: `${duration} mins`,
-              billedAmount: msg.billing?.amount_inr ?? 30,
+              slot: data.slot || statusData.active_session.slot_number,
+              plateNumber: plate,
+              durationFormatted: data.duration_formatted ?? data.duration ?? '—',
+              billedAmount: data.billed_amount ?? null,
               exitTime: new Date().toLocaleTimeString(),
             });
 

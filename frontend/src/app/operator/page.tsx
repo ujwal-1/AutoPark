@@ -184,8 +184,13 @@ export default function OperatorPage() {
     try {
       const res = await fetch(`${apiBase}/api/anpr/diagnostics?limit=15`);
       if (res.ok) {
-        const data = await res.json();
-        setDiagnostics(data);
+        const payload = await res.json();
+        // The endpoint wraps the list in an envelope:
+        // { status, timestamp, events, diagnostics }. Accept a bare array too.
+        const list = Array.isArray(payload)
+          ? payload
+          : payload?.diagnostics ?? payload?.events ?? [];
+        setDiagnostics(Array.isArray(list) ? list : []);
       }
     } catch {
       // Non-critical
@@ -259,8 +264,10 @@ export default function OperatorPage() {
           if (type === 'slot.allocated') {
             entryLastSeenRef.current = Date.now();
             fetchParkingState();
+            // Backend sends `vehicle`, older payloads used `vehicle_type`.
+            const vehicle = data.vehicle ?? data.vehicle_type ?? 'Vehicle';
             addEventLog(
-              `Entry Gate: ${data.vehicle_type} (${data.plate_number || 'Detected'}) assigned to Slot ${data.slot}`,
+              `Entry Gate: ${vehicle} (${data.plate_number || 'Detected'}) assigned to Slot ${data.slot}`,
               'allocated',
               data.slot,
               data.plate_number
@@ -268,7 +275,7 @@ export default function OperatorPage() {
 
             setAssignedBanner({
               slot: data.slot,
-              vehicleType: data.vehicle_type,
+              vehicleType: vehicle,
               plateNumber: data.plate_number,
               triggerBuzzer: true,
             });
@@ -277,7 +284,7 @@ export default function OperatorPage() {
               ...prev,
               slot: data.slot,
               status: 'ALLOCATED',
-              confidence: data.confidence || 0.94,
+              confidence: data.confidence ?? null,
               plate_number: data.plate_number,
               message: `Entry Authorized: Vehicle assigned to Slot ${data.slot}. Entry Boom Barrier raised (90°)!`,
               camera_online_status: 'ONLINE',
@@ -290,43 +297,48 @@ export default function OperatorPage() {
           } else if (type === 'barrier.entry') {
             entryLastSeenRef.current = Date.now();
             addEventLog(
-              `Servo Barrier: Entry Gate lifted to 90° for ${message.plate} -> Bay ${message.slot}`,
+              `Servo Barrier: Entry Gate lifted to 90° for ${data.plate ?? 'vehicle'} -> Bay ${data.slot ?? '—'}`,
               'barrier',
-              message.slot,
-              message.plate
+              data.slot,
+              data.plate
             );
-          } else if (type === 'barrier.exit' || type === 'parking.exit') {
+          } else if (type === 'vehicle.exited') {
             exitLastSeenRef.current = Date.now();
             fetchParkingState();
-            const duration = message.billing?.duration_minutes ?? 15;
-            const fee = message.billing?.amount_inr ?? 30;
-
             addEventLog(
-              `Servo Barrier: Exit Gate lifted to 90° for ${message.plate}. Fee: ₹${fee}`,
+              `Exit Gate: ${data.plate_number || 'Vehicle'} departed from Slot ${data.slot ?? '—'}`,
               'exited',
-              message.slot,
-              message.plate
+              data.slot,
+              data.plate_number
             );
-
-            setExitReceipt({
-              slot: message.slot || 'N/A',
-              plateNumber: message.plate,
-              durationFormatted: `${duration} mins`,
-              billedAmount: fee,
-              exitTime: new Date().toLocaleTimeString(),
-            });
 
             setExitDetection((prev) => ({
               ...prev,
-              slot: message.slot,
+              slot: data.slot ?? null,
               status: 'ALLOCATED',
-              confidence: 0.95,
-              plate_number: message.plate,
-              message: `Exit Authorized: ${message.plate} departed. Boom barrier opened (90°)!`,
+              confidence: null,
+              plate_number: data.plate_number ?? null,
+              message: `Exit Authorized: ${data.plate_number || 'Vehicle'} departed. Boom barrier opened (90°)!`,
               camera_online_status: 'ONLINE',
               last_frame_timestamp: Date.now(),
             }));
-          } else if (type === 'parking.unauthorized') {
+
+            setExitReceipt({
+              slot: data.slot ?? '—',
+              plateNumber: data.plate_number ?? '—',
+              durationFormatted: data.duration_formatted ?? '—',
+              billedAmount: data.billed_amount ?? null,
+              exitTime: new Date().toLocaleTimeString(),
+            });
+          } else if (type === 'barrier.exit') {
+            exitLastSeenRef.current = Date.now();
+            addEventLog(
+              `Servo Barrier: Exit Gate lifted to 90° for ${data.plate ?? 'vehicle'}${data.billed_amount != null ? ` • Fee ₹${data.billed_amount}` : ''}`,
+              'barrier',
+              data.slot,
+              data.plate
+            );
+          } else if (type === 'entry.unauthorized') {
             entryLastSeenRef.current = Date.now();
             addEventLog(
               `Access Denied: Unregistered vehicle (${data.plate_number || 'UNKNOWN'}). Barrier remains locked at 0°.`,
@@ -344,16 +356,22 @@ export default function OperatorPage() {
               ...prev,
               plate_number: data.plate_number,
               status: 'UNAUTHORIZED',
-              confidence: data.confidence || 0.85,
+              confidence: data.confidence ?? null,
               message: 'ENTRY REJECTED: No advance reservation found.',
               camera_online_status: 'ONLINE',
               last_frame_timestamp: Date.now(),
             }));
           } else if (type === 'parking.full') {
             addEventLog('Parking capacity reached! All 6 bays occupied.', 'full');
-          } else if (type === 'parking.reset') {
+          } else if (type === 'demo.reset' || type === 'parking.reset') {
+            setAssignedBanner({ slot: null, vehicleType: '', plateNumber: null, triggerBuzzer: false });
+            setUnauthorizedWarning(null);
+            setExitReceipt(null);
             fetchParkingState();
+            fetchDiagnostics();
             addEventLog('Facility reset: All slots reset to AVAILABLE', 'reset');
+          } else if (type === 'booking.created' || type === 'booking.cancelled') {
+            fetchParkingState();
           }
         } catch (err) {
           console.error('WS Parse error:', err);
