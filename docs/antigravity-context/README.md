@@ -59,7 +59,7 @@ ls ~/.gemini/antigravity-ide/brain/*/*.md
 # dump the user turns of a conversation
 python3 - <<'EOF'
 import sqlite3, re
-p = "/Users/ujwalanand/.gemini/antigravity-ide/conversations/b64d1016-779e-4191-8722-890a2bdd2d21.db"
+p = "~/.gemini/antigravity-ide/conversations/b64d1016-779e-4191-8722-890a2bdd2d21.db"
 c = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
 for idx, payload in c.execute("select idx, step_payload from steps where step_type=14 order by idx"):
     print(f"\n--- idx={idx}")

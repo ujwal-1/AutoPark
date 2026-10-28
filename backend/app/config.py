@@ -20,7 +20,9 @@ class Settings(BaseSettings):
     CAMERA_OFFLINE_TIMEOUT_SECONDS: int = 30
     
     # JWT & Auth
-    JWT_SECRET: str = os.getenv("JWT_SECRET", "autopark-super-secure-secret-token-key-2026-production-ready")
+    # Set JWT_SECRET in .env for anything beyond local development. The fallback
+    # is a known value and must not be treated as a real secret.
+    JWT_SECRET: str = os.getenv("JWT_SECRET", "dev-only-insecure-secret-set-JWT_SECRET-in-env")
     JWT_ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 1440  # 24 hours
     

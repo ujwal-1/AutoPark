@@ -1,8 +1,15 @@
 # Design and Development of Camera Based Smart Parking System with Real-Time Slot Monitoring and Dashboard Visualization
 
+> **Superseded — read this first.**
+> This is an earlier conference-paper draft kept for provenance. The figures quoted
+> in its abstract and results (8 bays, 96.4 % plate precision, 184 ms latency) come
+> from a prototype that no longer exists and were never measured on the current
+> system. For the accurate description and measurement status, see
+> `docs/report/AutoPark_Project_Report.pdf` and `docs/project-dossier/`.
+
 **Ujwal Anand¹ (1RR23IC056), Kailash G² (1RR23IC025), Nitish N.M³ (1RR23IC037), Varsha P⁴ (1RR23IC058)**  
 *¹, ², ³, ⁴ Department of Computer Science & Engineering (IoT CS with BCT), Rajarajeswari College of Engineering, Bangalore, Karnataka, India*  
-*Email: ujwalanand@rrce.org, kailashg@rrce.org, nitishnm@rrce.org, varshap@rrce.org*  
+*Email: [author contact addresses removed from this public copy]*  
 *Project Guide: Prof. Manohar T.V | Head of Department: Dr. V. Shashidhar*  
 *Course: Major Project (VI Sem), Course Code: BIC658, Batch No: 3*
 
@@ -98,7 +105,7 @@ Once plate string \(P_i\) is recognized, the slot allocation module checks the S
 
 The fundamental architecture of the AutoPark smart parking system is structured into five distinct operational tiers: Sensor Layer, Communication Layer, AI/Inference Layer, Persistence Layer, and Real-Time Visualization Layer.
 
-![Figure 1: System Architecture Diagram](file:///Users/ujwalanand/Downloads/AutoPark%203/system_architecture_diagram.png)  
+![Figure 1: System Architecture Diagram](file://~/Downloads/AutoPark%203/system_architecture_diagram.png)  
 *Figure 1. Block-diagrammatic representation of the project architecture*
 
 As depicted in Figure 1, the edge sensor nodes operate autonomously, communicating with the FastAPI backend over standard HTTP POST endpoints for static image frame submission and receiving JSON response payloads containing actuator control commands.
@@ -138,7 +145,7 @@ Output: Slot Assignment S_assigned, Buzzer Trigger Flag B_trigger, Updated Slot 
 
 The canonicalization function `Canonicalize_Plate_Text` eliminates common optical OCR character confusions by mapping ambiguous characters based on position rules (e.g., replacing 'O' with '0', 'I' or 'L' with '1', 'S' with '5', and 'B' with '8').
 
-![Figure 2: System Flowchart](file:///Users/ujwalanand/Downloads/AutoPark%203/system_flowchart_diagram.png)  
+![Figure 2: System Flowchart](file://~/Downloads/AutoPark%203/system_flowchart_diagram.png)  
 *Figure 2. Flowchart illustrating vehicle entry/exit detection, ALPR pipeline, and slot allocation workflow*
 
 ---
@@ -168,7 +175,7 @@ To rigorously evaluate the empirical performance, optical recognition accuracy, 
 
 ### A. Figures and Tables
 
-![Figure 3: Hardware Setup](file:///Users/ujwalanand/.gemini/antigravity-ide/brain/48a03ac5-5a1d-4371-acbf-f1deb225ed08/.user_uploaded/media_1790747956693.png)  
+![Figure 3: Hardware Setup](file://~/.gemini/antigravity-ide/brain/48a03ac5-5a1d-4371-acbf-f1deb225ed08/.user_uploaded/media_1790747956693.png)  
 *Figure 3. Physical hardware testbed components: ESP32-CAM edge optical node and integrated physical testbed featuring demonstration vehicle, HC-SR04 ultrasonic sensor, power module, and breadboard wiring*
 
 | Evaluation Module | Total Trials | Correct Detections | Precision (%) | Recall (%) | F1-Score (%) |
@@ -193,10 +200,10 @@ To rigorously evaluate the empirical performance, optical recognition accuracy, 
 
 ### B. Figures and Tables
 
-![Figure 4: Real-Time Dashboard UI](file:///Users/ujwalanand/.gemini/antigravity-ide/brain/48a03ac5-5a1d-4371-acbf-f1deb225ed08/.user_uploaded/media_1790748405493.png)  
+![Figure 4: Real-Time Dashboard UI](file://~/.gemini/antigravity-ide/brain/48a03ac5-5a1d-4371-acbf-f1deb225ed08/.user_uploaded/media_1790748405493.png)  
 *Figure 4. Real-Time AutoPark Interactive Slot Allocation & Visualization Dashboard (BookMyShow style 8-bay interactive layout)*
 
-![Figure 5: Preprocessing Stages](file:///Users/ujwalanand/Downloads/AutoPark%203/AutoPark/backend/plate_threshold.jpg)  
+![Figure 5: Preprocessing Stages](file://~/Downloads/AutoPark%203/AutoPark/backend/plate_threshold.jpg)  
 *Figure 5. License plate optical preprocessing: Adaptive thresholded binary representation for EasyOCR string extraction*
 
 As demonstrated by the empirical latency breakdown in Table III and total processing latency of 184 ms, the system easily fulfills the real-time execution constraint (\(T_{\text{total}} \le 300 \text{ ms}\)), enabling seamless driver entry authorization without traffic queue formation at gate thresholds.

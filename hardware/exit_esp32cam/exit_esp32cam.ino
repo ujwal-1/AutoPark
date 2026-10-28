@@ -10,10 +10,10 @@
 
 // =====================================================
 // 1. WI-FI CREDENTIALS
-// Update these to match your local Wi-Fi / Hotspot!
+// Fill these in for your own network before flashing. Never commit real credentials.
 // =====================================================
-const char* WIFI_SSID     = "Esp32test";
-const char* WIFI_PASSWORD = "12345687";
+const char* WIFI_SSID     = "YOUR_WIFI_SSID";
+const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
 
 // =====================================================
 // 2. BACKEND SERVER CONFIGURATION

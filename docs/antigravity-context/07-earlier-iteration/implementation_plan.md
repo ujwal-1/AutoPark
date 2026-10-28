@@ -17,7 +17,7 @@ Design and development of AutoPark, a camera-based smart parking system prototyp
 
 ### System Architecture & Project Structure
 
-The project will be organized cleanly within `/Users/ujwalanand/AutoPark` as follows:
+The project will be organized cleanly within `~/AutoPark` as follows:
 
 ```
 AutoPark/
@@ -63,19 +63,19 @@ AutoPark/
 
 ### Backend (FastAPI + SQLAlchemy + WebSocket)
 
-#### [NEW] [config.py](file:///Users/ujwalanand/AutoPark/backend/app/config.py)
+#### [NEW] [config.py](file://~/AutoPark/backend/app/config.py)
 Configurable settings: slot count (8: A1-A4, B1-B4), YOLO confidence threshold (0.75), detection cooldown (10 seconds), DB URL (`sqlite:///./autopark.db`).
 
-#### [NEW] [database.py](file:///Users/ujwalanand/AutoPark/backend/app/database.py)
+#### [NEW] [database.py](file://~/AutoPark/backend/app/database.py)
 SQLAlchemy engine configuration, session maker, DB initialization helper.
 
-#### [NEW] [models.py](file:///Users/ujwalanand/AutoPark/backend/app/models.py)
+#### [NEW] [models.py](file://~/AutoPark/backend/app/models.py)
 Database entities:
 - `ParkingSlot`: `id`, `slot_number` (A1..B4), `status` (`AVAILABLE`, `ALLOCATED`, `OCCUPIED`, `BLOCKED`, `MAINTENANCE`), `updated_at`.
 - `ParkingSession`: `id`, `vehicle_type`, `slot_id`, `entry_time`, `exit_time`, `status` (`ACTIVE`, `COMPLETED`).
 - `DetectionEvent`: `id`, `camera` (`ENTRY`, `EXIT`), `vehicle_type`, `confidence`, `detected_at`.
 
-#### [NEW] [slot_allocator.py](file:///Users/ujwalanand/AutoPark/backend/app/slot_allocator.py)
+#### [NEW] [slot_allocator.py](file://~/AutoPark/backend/app/slot_allocator.py)
 Thread-safe atomic allocation logic:
 - Prevents double allocation across concurrent requests.
 - Debounces repeated camera frames within the 10s cooldown window.
@@ -84,16 +84,16 @@ Thread-safe atomic allocation logic:
 - Handles `PARKING_FULL` when zero slots are available.
 - Handles duplicate detections for already allocated vehicles (returns existing slot).
 
-#### [NEW] [yolo_detector.py](file:///Users/ujwalanand/AutoPark/backend/app/yolo_detector.py)
+#### [NEW] [yolo_detector.py](file://~/AutoPark/backend/app/yolo_detector.py)
 Vision processing engine:
 - Ingests image bytes (JPEG).
 - Runs YOLO model or HSV color segmentation (detecting green RC car hue range with bounding box calculation & confidence calculation).
 - Returns detection outcome: `{ "detected": True, "vehicle_type": "green_rc_car", "confidence": 0.947, "bbox": [x1, y1, x2, y2] }`.
 
-#### [NEW] [websocket_manager.py](file:///Users/ujwalanand/AutoPark/backend/app/websocket_manager.py)
+#### [NEW] [websocket_manager.py](file://~/AutoPark/backend/app/websocket_manager.py)
 Manages active web client WebSocket connections. Broadcasts event types: `slot.allocated`, `slot.released`, `parking.full`, `buzzer.triggered`, `camera.status`, etc.
 
-#### [NEW] [main.py](file:///Users/ujwalanand/AutoPark/backend/app/main.py)
+#### [NEW] [main.py](file://~/AutoPark/backend/app/main.py)
 FastAPI application defining REST API endpoints & WebSocket endpoint:
 - `POST /api/detection/entry`
 - `POST /api/detection/exit`
@@ -109,7 +109,7 @@ FastAPI application defining REST API endpoints & WebSocket endpoint:
 
 ### Frontend (Next.js Dashboard)
 
-#### [NEW] [frontend/src/app/page.tsx](file:///Users/ujwalanand/AutoPark/frontend/src/app/page.tsx)
+#### [NEW] [frontend/src/app/page.tsx](file://~/AutoPark/frontend/src/app/page.tsx)
 Main dashboard container integrating all visual modules:
 1. **Header**: AutoPark title, system health badge, WebSocket connection indicator.
 2. **Stats Bar**: Animated metric counters (Total: 8, Available, Allocated, Occupied).
@@ -123,14 +123,14 @@ Main dashboard container integrating all visual modules:
 
 ### Hardware (ESP32-CAM Arduino Code)
 
-#### [NEW] [hardware/entry_esp32cam/entry_esp32cam.ino](file:///Users/ujwalanand/AutoPark/hardware/entry_esp32cam/entry_esp32cam.ino)
+#### [NEW] [hardware/entry_esp32cam/entry_esp32cam.ino](file://~/AutoPark/hardware/entry_esp32cam/entry_esp32cam.ino)
 C++ sketch for ESP32-CAM #1 (Entry):
 - Connects to Wi-Fi.
 - Captures frames from OV2640 camera.
 - Sends HTTP POST multipart image request to `http://<laptop-ip>:8000/api/detection/entry`.
 - On receiving `{"trigger_buzzer": true}`, drives GPIO pin HIGH for double-beep sound.
 
-#### [NEW] [hardware/exit_esp32cam/exit_esp32cam.ino](file:///Users/ujwalanand/AutoPark/hardware/exit_esp32cam/exit_esp32cam.ino)
+#### [NEW] [hardware/exit_esp32cam/exit_esp32cam.ino](file://~/AutoPark/hardware/exit_esp32cam/exit_esp32cam.ino)
 C++ sketch for ESP32-CAM #2 (Exit):
 - Connects to Wi-Fi.
 - Captures frames from OV2640 camera.

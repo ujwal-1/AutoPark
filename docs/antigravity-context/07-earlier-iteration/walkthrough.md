@@ -28,15 +28,15 @@ We have designed, built, and verified **AutoPark**, a camera-based smart parking
 - **Demo Triggers**: Buttons to simulate Green Car Entry, Exit, Manual Slot Release, and Demo Reset.
 
 ### 3. ESP32-CAM Firmware & Setup Guide
-- **[entry_esp32cam.ino](file:///Users/ujwalanand/AutoPark/hardware/entry_esp32cam/entry_esp32cam.ino)**: Ingests OV2640 frames, posts JPEG to FastAPI backend, drives GPIO 12 active buzzer on successful allocation.
-- **[exit_esp32cam.ino](file:///Users/ujwalanand/AutoPark/hardware/exit_esp32cam/exit_esp32cam.ino)**: Exit camera firmware (no buzzer).
-- **[HARDWARE_GUIDE.md](file:///Users/ujwalanand/AutoPark/HARDWARE_GUIDE.md)**: Complete step-by-step documentation for components, FTDI pinout, Arduino IDE configuration, flashing instructions, and physical demo walkthrough.
+- **[entry_esp32cam.ino](file://~/AutoPark/hardware/entry_esp32cam/entry_esp32cam.ino)**: Ingests OV2640 frames, posts JPEG to FastAPI backend, drives GPIO 12 active buzzer on successful allocation.
+- **[exit_esp32cam.ino](file://~/AutoPark/hardware/exit_esp32cam/exit_esp32cam.ino)**: Exit camera firmware (no buzzer).
+- **[HARDWARE_GUIDE.md](file://~/AutoPark/HARDWARE_GUIDE.md)**: Complete step-by-step documentation for components, FTDI pinout, Arduino IDE configuration, flashing instructions, and physical demo walkthrough.
 
 ---
 
 ## 📸 Visual Demonstration
 
-![BookMyShow Dashboard Screenshot](/Users/ujwalanand/.gemini/antigravity-ide/brain/3d96d371-51a1-4164-b307-8298576c66a4/entry_slot_allocated_1789837666171.png)
+![BookMyShow Dashboard Screenshot](~/.gemini/antigravity-ide/brain/3d96d371-51a1-4164-b307-8298576c66a4/entry_slot_allocated_1789837666171.png)
 
 ---
 
@@ -64,10 +64,10 @@ tests/test_api.py::test_manual_release PASSED
 To start both the FastAPI backend and Next.js frontend:
 
 ```bash
-cd /Users/ujwalanand/AutoPark
+cd ~/AutoPark
 ./start_all.sh
 ```
 
 - **Backend API**: `http://192.168.0.107:8000` (or `http://localhost:8000`)
 - **Interactive Dashboard**: `http://localhost:3000`
-- **Hardware Guide**: Check [HARDWARE_GUIDE.md](file:///Users/ujwalanand/AutoPark/HARDWARE_GUIDE.md) for full circuit diagrams and flashing steps.
+- **Hardware Guide**: Check [HARDWARE_GUIDE.md](file://~/AutoPark/HARDWARE_GUIDE.md) for full circuit diagrams and flashing steps.
