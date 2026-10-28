@@ -2,16 +2,17 @@
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Navbar } from '../../components/Navbar';
-import { StatsOverview } from '../../components/StatsOverview';
 import { NotificationBanner } from '../../components/NotificationBanner';
 import { ParkingLayout } from '../../components/ParkingLayout';
 import { LiveCameraFeed } from '../../components/LiveCameraFeed';
 import { LiveActivityLog } from '../../components/LiveActivityLog';
 import { DemoControls } from '../../components/DemoControls';
 import { ExitReceiptModal } from '../../components/ExitReceiptModal';
+import { SessionsTable } from '../../components/SessionsTable';
+import { LastReceiptPanel } from '../../components/LastReceiptPanel';
+import { TelemetryPanel } from '../../components/TelemetryPanel';
 import {
   ParkingSlotData,
-  ParkingSummary,
   ActivityEvent,
   CameraDetectionState,
   CameraOnlineStatus,
@@ -19,24 +20,17 @@ import {
   ExitReceiptData,
 } from '../../lib/types';
 import { getApiBaseUrl, getWsUrl } from '../../lib/config';
-import { AlertTriangle, RefreshCw, X } from 'lucide-react';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 export default function OperatorPage() {
   const [slots, setSlots] = useState<ParkingSlotData[]>([]);
-  const [summary, setSummary] = useState<ParkingSummary>({
-    total_slots: 6,
-    available: 6,
-    allocated: 0,
-    occupied: 0,
-    blocked: 0,
-  });
   const [events, setEvents] = useState<ActivityEvent[]>([]);
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [systemOnline, setSystemOnline] = useState<boolean>(true);
   const [loading, setLoading] = useState<boolean>(false);
   const [diagnostics, setDiagnostics] = useState<DiagnosticEvent[]>([]);
   const [exitReceipt, setExitReceipt] = useState<ExitReceiptData | null>(null);
-  const [clock, setClock] = useState<string>('');
+  const [lastReceipt, setLastReceipt] = useState<ExitReceiptData | null>(null);
 
   // Entry and Exit Camera Detection States
   const [entryDetection, setEntryDetection] = useState<CameraDetectionState>({
@@ -92,22 +86,6 @@ export default function OperatorPage() {
     plateNumber: null,
     triggerBuzzer: false,
   });
-
-  // Shift clock — the console should be able to say what time it is.
-  useEffect(() => {
-    const tick = () =>
-      setClock(
-        new Date().toLocaleTimeString([], {
-          hour: '2-digit',
-          minute: '2-digit',
-          second: '2-digit',
-          hour12: false,
-        })
-      );
-    tick();
-    const id = setInterval(tick, 1000);
-    return () => clearInterval(id);
-  }, []);
 
   const addEventLog = (
     message: string,
@@ -172,19 +150,13 @@ export default function OperatorPage() {
     return () => clearInterval(statusInterval);
   }, []);
 
-  // Fetch live state from backend
+  // Fetch live bay state from the backend
   const fetchParkingState = useCallback(async () => {
     try {
-      const [slotsRes, summaryRes] = await Promise.all([
-        fetch(`${apiBase}/api/parking/slots`),
-        fetch(`${apiBase}/api/parking/summary`),
-      ]);
-
-      if (slotsRes.ok && summaryRes.ok) {
-        const slotsData = await slotsRes.json();
-        const summaryData = await summaryRes.json();
-        setSlots(slotsData);
-        setSummary(summaryData);
+      const res = await fetch(`${apiBase}/api/parking/slots`);
+      if (res.ok) {
+        const data = await res.json();
+        setSlots(Array.isArray(data) ? data : []);
         setSystemOnline(true);
       } else {
         setSystemOnline(false);
@@ -337,7 +309,7 @@ export default function OperatorPage() {
               last_frame_timestamp: Date.now(),
             }));
 
-            setExitReceipt({
+            const receipt: ExitReceiptData = {
               slot: data.slot ?? '—',
               plateNumber: data.plate_number ?? '—',
               durationFormatted: data.duration_formatted ?? '—',
@@ -347,7 +319,9 @@ export default function OperatorPage() {
                 minute: '2-digit',
                 hour12: false,
               }),
-            });
+            };
+            setExitReceipt(receipt);
+            setLastReceipt(receipt);
           } else if (type === 'barrier.exit') {
             exitLastSeenRef.current = Date.now();
             addEventLog(
@@ -387,6 +361,7 @@ export default function OperatorPage() {
             setAssignedBanner({ slot: null, vehicleType: '', plateNumber: null, triggerBuzzer: false });
             setUnauthorizedWarning(null);
             setExitReceipt(null);
+            setLastReceipt(null);
             fetchParkingState();
             fetchDiagnostics();
             addEventLog('Facility reset — all bays available', 'reset');
@@ -477,6 +452,7 @@ export default function OperatorPage() {
         fetchDiagnostics();
         setAssignedBanner({ slot: null, vehicleType: '', plateNumber: null, triggerBuzzer: false });
         setUnauthorizedWarning(null);
+        setLastReceipt(null);
       }
     } catch {
       alert('Error resetting demo');
@@ -485,40 +461,25 @@ export default function OperatorPage() {
     }
   };
 
+  const goToGates = () => {
+    document.getElementById('gates')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
   return (
     <div className="min-h-screen bg-concrete text-ink flex flex-col">
       <Navbar wsConnected={wsConnected} />
 
-      <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 py-5">
-        {/* Page head */}
-        <div className="flex flex-wrap items-end gap-x-5 gap-y-2 pb-3.5">
-          <div>
-            <h1 className="font-sign font-bold text-[24px] tracking-[-0.02em] leading-none">
-              Operator console
-            </h1>
-            <p className="text-[12.5px] text-ink2 mt-1.5">
-              Live facility state and gate controls
-            </p>
+      <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 pb-9">
+        {/* Page head — title, subtitle inline, live stamp on the right */}
+        <div className="flex flex-wrap items-end gap-x-[18px] gap-y-2 pt-5 pb-3.5">
+          <h1 className="font-sign font-bold text-[26px] leading-[1.1] tracking-[-0.022em]">
+            Operator console
+          </h1>
+          <div className="text-[12.5px] text-ink2 pb-[3px]">
+            Live facility state and gate controls
           </div>
-
-          <div className="ml-auto flex items-center gap-3">
-            <div className="flex items-center gap-1.5 mono text-[10.5px] uppercase tracking-[0.08em] text-muted">
-              <span
-                className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-ok' : 'bg-fault'}`}
-              />
-              {wsConnected ? 'stream linked' : 'polling'}
-            </div>
-            <span className="mono text-[12px] tabular-nums">{clock}</span>
-            <button
-              onClick={() => {
-                fetchParkingState();
-                fetchDiagnostics();
-              }}
-              className="btn flex items-center gap-1.5"
-            >
-              <RefreshCw className="w-3.5 h-3.5" />
-              Refresh
-            </button>
+          <div className="ml-auto mono text-[10px] uppercase tracking-[0.1em] text-ink2 border border-hair2 bg-panel px-[9px] py-[5px]">
+            Live · Sanjay Nagar
           </div>
         </div>
 
@@ -529,62 +490,81 @@ export default function OperatorPage() {
               Can&apos;t reach the backend at <span className="mono">{apiBase}</span>. Retrying
               every 4&nbsp;s.
             </p>
-          </div>
-        )}
-
-        {unauthorizedWarning && (
-          <div className="mb-4 flex flex-wrap items-center gap-3 bg-paint border border-paintDeep px-3.5 py-2.5">
-            <span className="mono text-[9.5px] uppercase tracking-[0.12em] border border-ink/40 px-1.5 py-0.5">
-              Attention
-            </span>
-            <p className="text-[13px] text-ink">
-              <b className="font-semibold">Entry refused</b> —{' '}
-              <span className="mono">{unauthorizedWarning.plateNumber}</span> has no open booking.
-              <span className="text-ink2"> Barrier stayed down.</span>
-            </p>
             <button
-              onClick={() => setUnauthorizedWarning(null)}
-              className="ml-auto text-[11.5px] text-ink2 hover:text-ink inline-flex items-center gap-1"
+              onClick={() => {
+                fetchParkingState();
+                fetchDiagnostics();
+              }}
+              className="btn ml-auto shrink-0"
             >
-              <X className="w-3.5 h-3.5" />
-              Dismiss
+              Retry
             </button>
           </div>
         )}
 
-        <StatsOverview summary={summary} />
-
-        <div className="mt-3.5">
+        {unauthorizedWarning && (
           <NotificationBanner
-            allocatedSlot={assignedBanner.slot}
-            vehicleType={assignedBanner.vehicleType}
-            plateNumber={assignedBanner.plateNumber}
-            triggerBuzzer={assignedBanner.triggerBuzzer}
-            onDismiss={() =>
-              setAssignedBanner({ slot: null, vehicleType: '', plateNumber: null, triggerBuzzer: false })
-            }
-          />
-        </div>
+            label="Attention"
+            onReview={goToGates}
+            onDismiss={() => setUnauthorizedWarning(null)}
+          >
+            <b className="font-semibold">Entry refused</b> —{' '}
+            <span className="mono">{unauthorizedWarning.plateNumber}</span> has no open booking.
+            <span className="text-ink2"> Barrier stayed down.</span>
+          </NotificationBanner>
+        )}
 
-        <div className="mt-4">
-          <ParkingLayout slots={slots} onManualRelease={handleManualRelease} />
-        </div>
+        {assignedBanner.slot && (
+          <NotificationBanner label="Entry" onDismiss={() => setAssignedBanner({ ...assignedBanner, slot: null })}>
+            <b className="font-semibold">Bay {assignedBanner.slot}</b> assigned
+            {assignedBanner.plateNumber ? (
+              <>
+                {' '}
+                · <span className="mono">{assignedBanner.plateNumber}</span>
+              </>
+            ) : null}
+            <span className="text-ink2">
+              {' '}
+              · {(assignedBanner.vehicleType || 'vehicle').replace('_', ' ')} · barrier up
+            </span>
+          </NotificationBanner>
+        )}
 
-        <div className="mt-4 grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 items-start">
-          <LiveCameraFeed
-            entryDetection={entryDetection}
-            exitDetection={exitDetection}
-            diagnostics={diagnostics}
-            apiBase={apiBase}
-            loading={loading}
-            onRefresh={() => {
-              fetchParkingState();
-              fetchDiagnostics();
-            }}
-          />
+        <ParkingLayout
+          slots={slots}
+          entryBarrierOpen={entryDetection.status === 'ALLOCATED'}
+          exitBarrierOpen={exitDetection.status === 'RELEASED'}
+          loading={loading}
+        />
 
-          <div className="grid gap-4">
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1.62fr)_minmax(0,1fr)] gap-4 items-start">
+          <div className="grid gap-4 min-w-0">
+            <SessionsTable slots={slots} onRelease={handleManualRelease} />
             <LiveActivityLog events={events} />
+          </div>
+
+          <div className="grid gap-4 min-w-0">
+            <div id="gates" className="scroll-mt-16">
+              <LiveCameraFeed
+                entryDetection={entryDetection}
+                exitDetection={exitDetection}
+                diagnostics={diagnostics}
+                apiBase={apiBase}
+                loading={loading}
+                onRefresh={() => {
+                  fetchParkingState();
+                  fetchDiagnostics();
+                }}
+              />
+            </div>
+
+            <LastReceiptPanel
+              receipt={lastReceipt}
+              onOpen={() => lastReceipt && setExitReceipt(lastReceipt)}
+            />
+
+            <TelemetryPanel />
+
             <DemoControls
               onSimulateEntry={handleSimulateEntry}
               onSimulateExit={handleSimulateExit}
@@ -596,11 +576,16 @@ export default function OperatorPage() {
           </div>
         </div>
 
-        <footer className="mt-5 pt-2.5 border-t border-hair flex flex-wrap items-center gap-4 text-[11px] text-muted">
-          <span className="kicker">Facility</span>
-          <span>Sanjay Nagar · 6 bays · 2 gates</span>
+        <footer className="mt-4 flex flex-wrap items-center gap-4 pt-2.5 border-t border-hair2 text-[11px] text-muted">
+          <span className="kicker">Build</span>
+          <span>main · demo database</span>
           <span className="ml-auto flex items-center gap-4">
-            <span className="mono">demo database</span>
+            <span>
+              <span className="kicker">Bays</span> {slots.length || 6}
+            </span>
+            <span>
+              <span className="kicker">Gates</span> 2
+            </span>
             <span className="mono">{wsConnected ? 'websocket' : 'http polling'}</span>
           </span>
         </footer>

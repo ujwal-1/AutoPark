@@ -199,6 +199,50 @@
     );
   }
 
+  /* lane markings — faint ticks along the driveway */
+  .lane-ticks {
+    background-image: repeating-linear-gradient(
+      90deg,
+      transparent 0 26px,
+      rgba(112, 107, 91, 0.16) 26px 27px
+    );
+  }
+
+  /* ---------- operational tables ---------- */
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12.5px;
+  }
+  .data-table th {
+    font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    font-size: 9.5px;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 500;
+    text-align: left;
+    padding: 7px 13px;
+    border-bottom: 1px solid var(--line);
+    white-space: nowrap;
+  }
+  .data-table td {
+    padding: 10px 13px;
+    border-bottom: 1px solid var(--line);
+    vertical-align: middle;
+  }
+  .data-table tbody tr:last-child td {
+    border-bottom: 0;
+  }
+  .data-table .r {
+    text-align: right;
+  }
+  .data-table .bay-no {
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+  }
+
   /* ---------- legacy District classes, re-pointed at the palette ----------
      Kept so any markup not yet restyled still renders in-theme. */
   .district-card {

@@ -7,29 +7,11 @@ interface LiveActivityLogProps {
   events: ActivityEvent[];
 }
 
-const dotFor = (type: string) => {
-  switch (type) {
-    case 'allocated':
-    case 'barrier':
-      return 'bg-ok';
-    case 'released':
-    case 'exited':
-      return 'bg-ink';
-    case 'unauthorized':
-    case 'full':
-      return 'bg-fault';
-    case 'buzzer':
-      return 'bg-paintDeep';
-    case 'reset':
-      return 'bg-hair2';
-    default:
-      return 'bg-hair2';
-  }
-};
+const isFault = (type: string) => type === 'unauthorized' || type === 'full';
 
 export const LiveActivityLog: React.FC<LiveActivityLogProps> = ({ events }) => {
   return (
-    <section className="card flex flex-col h-full">
+    <section className="card flex flex-col">
       <div className="card-head">
         <span className="kicker">Log</span>
         <span className="sign-title">Gateway activity</span>
@@ -38,38 +20,39 @@ export const LiveActivityLog: React.FC<LiveActivityLogProps> = ({ events }) => {
         </span>
       </div>
 
-      <div className="flex-1 max-h-[330px] overflow-y-auto">
+      <div className="max-h-[352px] overflow-y-auto">
         {events.length === 0 ? (
-          <div className="px-4 py-8 text-[12px] text-muted">
+          <p className="px-3.5 py-8 text-[12.5px] text-muted">
             No sessions yet today. Entries appear here as they happen.
-          </div>
+          </p>
         ) : (
           <ul>
             {events.map((evt) => (
               <li
                 key={evt.id}
-                className="grid grid-cols-[52px_8px_1fr] gap-2.5 items-start px-4 py-2 border-b border-hair last:border-b-0"
+                className={`grid grid-cols-[46px_1fr] gap-3 px-3.5 py-2 border-b border-hair last:border-b-0 ${
+                  isFault(evt.type) ? 'border-l-2 border-l-fault pl-2.5' : ''
+                }`}
               >
-                <span className="mono text-[10.5px] text-muted pt-[1px]">
+                <span className="mono text-[11px] text-muted pt-[1px] tabular-nums">
                   {String(evt.timestamp).slice(0, 5)}
                 </span>
-                <span className={`w-1.5 h-1.5 rounded-full mt-[5px] ${dotFor(evt.type)}`} />
-                <div className="text-[12px] text-ink2 leading-snug">
+                <p className="text-[12.5px] text-ink2 leading-snug">
                   {evt.message}
                   {evt.slot && (
-                    <span className="mono text-[11px] text-ink"> · bay {evt.slot}</span>
+                    <span className="mono text-[11.5px] text-ink"> · bay {evt.slot}</span>
                   )}
                   {evt.plate_number && (
-                    <span className="mono text-[11px] text-ink"> · {evt.plate_number}</span>
+                    <span className="mono text-[11.5px] text-ink"> · {evt.plate_number}</span>
                   )}
-                </div>
+                </p>
               </li>
             ))}
           </ul>
         )}
       </div>
 
-      <div className="border-t border-hair px-4 py-1.5 flex items-center justify-between mono text-[9.5px] uppercase tracking-[0.12em] text-muted">
+      <div className="border-t border-hair px-3.5 py-1.5 flex items-center justify-between mono text-[9.5px] uppercase tracking-[0.12em] text-muted">
         <span>Audit trail</span>
         <span>WebSocket</span>
       </div>

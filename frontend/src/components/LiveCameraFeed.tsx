@@ -317,7 +317,7 @@ export const LiveCameraFeed: React.FC<DetectionPanelProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 p-3">
+      <div className="grid grid-cols-1 gap-3 p-3">
         <GateCard
           label="Entry"
           endpoint="/api/detection/entry"
