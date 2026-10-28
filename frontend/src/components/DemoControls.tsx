@@ -1,7 +1,6 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Play, RotateCcw, Unlock, Cpu } from 'lucide-react';
 
 interface DemoControlsProps {
   onSimulateEntry: (authorized?: boolean) => void;
@@ -17,97 +16,87 @@ export const DemoControls: React.FC<DemoControlsProps> = ({
   onSimulateExit,
   onResetDemo,
   onManualReleaseSlot,
+  availableSlots,
   loading,
 }) => {
   const [selectedReleaseSlot, setSelectedReleaseSlot] = useState<string>('A1');
 
   return (
-    <div className="district-card p-6 h-full flex flex-col justify-between">
-      <div>
-        <div className="flex items-center justify-between mb-4 pb-3 border-b border-white/[0.08]">
-          <h2 className="text-base font-bold text-white flex items-center gap-2">
-            <Cpu className="w-4 h-4 text-zinc-400" />
-            Gate &amp; Boom Barrier Simulator
-          </h2>
-          <span className="text-[10px] uppercase font-bold tracking-wider px-2.5 py-0.5 rounded-full bg-[#18181B] text-zinc-400 border border-white/10">
-            HIL Testing
-          </span>
-        </div>
+    <section className="card flex flex-col h-full">
+      <div className="card-head">
+        <span className="kicker">Bench</span>
+        <span className="sign-title">Gate simulator</span>
+        <span className="ml-auto mono text-[10.5px] text-muted">no hardware attached</span>
+      </div>
 
-        <p className="text-xs text-zinc-400 mb-5 font-normal leading-relaxed">
-          Test camera ANPR matching, dual SG90 servo boom barrier actuation (0°/90°), and pre-booking gate security clearances.
+      <div className="p-4 flex-1 flex flex-col gap-5">
+        <p className="text-[12px] text-ink2 leading-relaxed">
+          Drives the same endpoints the ESP32-CAM posts to. Entry reads a plate, matches it
+          against an open booking, and lifts the barrier only on a match.
         </p>
 
-        {/* Demo Triggers (Clean District Style Buttons) */}
-        <div className="space-y-3 mb-6">
+        <div className="grid gap-2">
           <button
             onClick={() => onSimulateEntry(true)}
             disabled={loading}
-            className="w-full py-3 px-4 rounded-full bg-white hover:bg-zinc-200 text-black font-bold text-xs tracking-wider uppercase transition-all shadow-sm active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="btn btn-solid w-full py-2.5"
           >
-            <Play className="w-3.5 h-3.5 fill-black text-black" />
-            Simulate Pre-Booked Entry (Lift Barrier)
+            Simulate booked entry
           </button>
-
           <button
             onClick={() => onSimulateEntry(false)}
             disabled={loading}
-            className="w-full py-3 px-4 rounded-full bg-[#18181B] hover:bg-zinc-800 text-white font-bold text-xs tracking-wider uppercase border border-white/15 hover:border-white/30 transition-all active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="btn w-full py-2.5 flex items-center justify-center gap-2"
           >
-            <span className="w-2 h-2 rounded-full bg-amber-400" />
-            Simulate Unregistered Entry (Barrier Locked)
+            <span className="w-1.5 h-1.5 bg-paintDeep" />
+            Simulate unlisted plate
           </button>
-
           <button
             onClick={onSimulateExit}
             disabled={loading}
-            className="w-full py-3 px-4 rounded-full bg-[#18181B] hover:bg-zinc-800 text-white font-bold text-xs tracking-wider uppercase border border-white/15 hover:border-white/30 transition-all active:scale-98 disabled:opacity-50 flex items-center justify-center gap-2"
+            className="btn w-full py-2.5"
           >
-            <Play className="w-3.5 h-3.5 fill-white text-white" />
-            Simulate Vehicle Exit (Lift Barrier)
+            Simulate exit
           </button>
         </div>
 
-        {/* Manual Release Override */}
-        <div className="p-4 rounded-2xl bg-[#18181B] border border-white/10 mb-6">
-          <label className="text-xs font-bold text-zinc-300 block mb-2 flex items-center gap-1.5">
-            <Unlock className="w-3.5 h-3.5 text-zinc-400" />
-            Manual Slot Release Override
-          </label>
-
+        <div className="border border-hair p-3">
+          <label className="kicker block mb-2">Manual release</label>
           <div className="flex gap-2">
             <select
               value={selectedReleaseSlot}
               onChange={(e) => setSelectedReleaseSlot(e.target.value)}
-              className="flex-1 bg-[#121214] border border-white/15 rounded-xl px-3 py-2 text-xs font-mono font-bold text-white focus:outline-none focus:border-white/40"
+              className="mono flex-1 bg-white border border-hair2 px-2.5 py-1.5 text-[12px] text-ink focus:outline-none focus:border-ink"
             >
               {['A1', 'A2', 'A3', 'B1', 'B2', 'B3'].map((slotNum) => (
-                <option key={slotNum} value={slotNum} className="bg-[#121214] text-white">
-                  Slot {slotNum}
+                <option key={slotNum} value={slotNum}>
+                  Bay {slotNum}
                 </option>
               ))}
             </select>
-
             <button
               onClick={() => onManualReleaseSlot(selectedReleaseSlot)}
               disabled={loading}
-              className="py-2 px-4 rounded-xl bg-white hover:bg-zinc-200 text-black text-xs font-bold transition-colors active:scale-95 disabled:opacity-50"
+              className="btn"
             >
               Release
             </button>
           </div>
+          <p className="text-[10.5px] text-muted mt-2">
+            {availableSlots.length === 0
+              ? 'No bay is free.'
+              : `Free now: ${availableSlots.join(', ')}`}
+          </p>
         </div>
-      </div>
 
-      {/* Reset Facility */}
-      <button
-        onClick={onResetDemo}
-        disabled={loading}
-        className="w-full py-2.5 px-4 rounded-full bg-[#18181B] hover:bg-zinc-800 text-zinc-400 hover:text-white font-bold text-xs uppercase tracking-wider border border-white/10 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
-      >
-        <RotateCcw className="w-3.5 h-3.5" />
-        Reset Facility &amp; Gates
-      </button>
-    </div>
+        <button
+          onClick={onResetDemo}
+          disabled={loading}
+          className="btn btn-quiet mt-auto self-start"
+        >
+          Reset facility
+        </button>
+      </div>
+    </section>
   );
 };

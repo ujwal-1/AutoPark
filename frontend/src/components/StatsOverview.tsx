@@ -2,67 +2,65 @@
 
 import React from 'react';
 import { ParkingSummary } from '../lib/types';
-import { LayoutGrid, CheckCircle2, Clock, Car } from 'lucide-react';
 
 interface StatsOverviewProps {
   summary: ParkingSummary;
 }
 
+const Cell: React.FC<{
+  label: string;
+  value: number;
+  note?: string;
+  dot?: string;
+  emphasis?: boolean;
+}> = ({ label, value, note, dot, emphasis }) => (
+  <div className="px-4 sm:px-5 py-3 flex items-baseline justify-between gap-3">
+    <div>
+      <div className="flex items-center gap-1.5">
+        {dot && <span className={`w-1.5 h-1.5 ${dot}`} />}
+        <span className="kicker">{label}</span>
+      </div>
+      <div
+        className={`mono text-[26px] leading-none mt-2 ${
+          emphasis ? 'text-ink' : 'text-ink2'
+        }`}
+      >
+        {value}
+      </div>
+      {note && <div className="text-[10.5px] text-muted mt-1.5">{note}</div>}
+    </div>
+  </div>
+);
+
 export const StatsOverview: React.FC<StatsOverviewProps> = ({ summary }) => {
+  const inUse = summary.total_slots - summary.available;
+
   return (
-    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
-      {/* Total Slots */}
-      <div className="district-card p-4 sm:p-5 flex items-center justify-between">
-        <div>
-          <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Total Bays</p>
-          <p className="text-3xl font-black text-white mt-1 font-mono">{summary.total_slots}</p>
-        </div>
-        <div className="w-11 h-11 rounded-xl bg-[#18181B] border border-white/10 flex items-center justify-center text-white">
-          <LayoutGrid className="w-5 h-5" />
-        </div>
-      </div>
-
-      {/* Available */}
-      <div className="district-card p-4 sm:p-5 flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
-            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Available</p>
-          </div>
-          <p className="text-3xl font-black text-white mt-1 font-mono">{summary.available}</p>
-        </div>
-        <div className="w-11 h-11 rounded-xl bg-[#18181B] border border-white/10 flex items-center justify-center text-white">
-          <CheckCircle2 className="w-5 h-5" />
-        </div>
-      </div>
-
-      {/* Booked / Reserved */}
-      <div className="district-card p-4 sm:p-5 flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-400 inline-block" />
-            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Reserved</p>
-          </div>
-          <p className="text-3xl font-black text-white mt-1 font-mono">{summary.allocated}</p>
-        </div>
-        <div className="w-11 h-11 rounded-xl bg-[#18181B] border border-white/10 flex items-center justify-center text-white">
-          <Clock className="w-5 h-5" />
-        </div>
-      </div>
-
-      {/* Occupied */}
-      <div className="district-card p-4 sm:p-5 flex items-center justify-between">
-        <div>
-          <div className="flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-zinc-500 inline-block" />
-            <p className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">Occupied</p>
-          </div>
-          <p className="text-3xl font-black text-white mt-1 font-mono">{summary.occupied}</p>
-        </div>
-        <div className="w-11 h-11 rounded-xl bg-[#18181B] border border-white/10 flex items-center justify-center text-white">
-          <Car className="w-5 h-5" />
-        </div>
-      </div>
+    <div className="card grid grid-cols-2 md:grid-cols-4 divide-x divide-hair">
+      <Cell
+        label="Bays"
+        value={summary.total_slots}
+        note="A1–A3 · B1–B3"
+        emphasis
+      />
+      <Cell
+        label="Available"
+        value={summary.available}
+        dot="bg-ok"
+        note={`${inUse} of ${summary.total_slots} in use`}
+      />
+      <Cell
+        label="Reserved"
+        value={summary.allocated}
+        dot="bg-paintDeep"
+        note="Held for a booking"
+      />
+      <Cell
+        label="Occupied"
+        value={summary.occupied}
+        dot="bg-ink"
+        note="Vehicle inside"
+      />
     </div>
   );
 };

@@ -234,26 +234,26 @@ export default function PassPage() {
   };
 
   return (
-    <div className="min-h-screen bg-districtBg text-white flex flex-col selection:bg-white/20 selection:text-white">
+    <div className="min-h-screen bg-concrete text-ink flex flex-col selection:bg-ink selection:text-panel">
       <Navbar />
 
       {/* Real-time Servo Barrier Event Banner (Monochrome Style) */}
       {barrierAlert && (
-        <div className="bg-[#141416] border-b border-white/[0.1] px-4 py-3 text-white backdrop-blur-xl animate-fade-in sticky top-16 z-40 shadow-sm">
+        <div className="bg-panel border-b border-hair px-4 py-3 text-ink animate-fade-in sticky top-16 z-40">
           <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
               <span className="flex h-3 w-3 relative">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-sm bg-ok opacity-75"></span>
+                <span className="relative inline-flex rounded-sm h-3 w-3 bg-ok"></span>
               </span>
               <p className="text-xs sm:text-sm font-semibold tracking-wide flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-white" />
+                <Sparkles className="w-4 h-4 text-ink" />
                 {barrierAlert.message}
               </p>
             </div>
             <button
               onClick={() => setBarrierAlert(null)}
-              className="text-xs text-zinc-400 hover:text-white underline font-bold"
+              className="text-xs text-ink2 hover:text-ink underline font-bold"
             >
               Dismiss
             </button>
@@ -263,16 +263,16 @@ export default function PassPage() {
 
       <main className="flex-1 max-w-5xl w-full mx-auto px-4 sm:px-6 py-8 flex flex-col space-y-6">
         {/* District Page Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/[0.08]">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-hair">
           <div>
-            <div className="flex items-center gap-2 text-zinc-400 text-xs font-bold uppercase tracking-wider mb-1">
-              <ShieldCheck className="w-4 h-4 text-white" />
+            <div className="flex items-center gap-2 text-ink2 text-xs font-bold uppercase tracking-wider mb-1">
+              <ShieldCheck className="w-4 h-4 text-ink" />
               <span>Digital Smart Gate Credential</span>
             </div>
-            <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
+            <h1 className="text-2xl sm:text-3xl font-semibold tracking-tight text-ink">
               Driver Active Parking Pass
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-1">
+            <p className="text-xs sm:text-sm text-ink2 mt-1">
               Real-time hardware clearance pass for entry & exit servo boom barriers.
             </p>
           </div>
@@ -281,9 +281,9 @@ export default function PassPage() {
             <button
               onClick={() => fetchStatus(token)}
               disabled={loading}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#141416] border border-white/[0.08] hover:border-white/30 text-zinc-300 hover:text-white text-xs font-semibold transition-all shadow-sm self-start sm:self-auto"
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-sm bg-panel border border-hair hover:border-ink text-ink2 hover:text-ink text-xs font-semibold transition-all self-start sm:self-auto"
             >
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-white' : ''}`} />
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin text-ink' : ''}`} />
               <span>Refresh Status</span>
             </button>
           )}
@@ -291,24 +291,24 @@ export default function PassPage() {
 
         {/* Content Area */}
         {loading ? (
-          <div className="flex-1 flex flex-col items-center justify-center py-20 text-zinc-400 gap-3">
-            <RefreshCw className="w-8 h-8 animate-spin text-white" />
+          <div className="flex-1 flex flex-col items-center justify-center py-20 text-ink2 gap-3">
+            <RefreshCw className="w-8 h-8 animate-spin text-ink" />
             <p className="text-sm font-medium">Verifying active pass credentials...</p>
           </div>
         ) : !token ? (
           /* Not Signed In State (District Monochrome Design) */
           <div className="flex-1 flex flex-col items-center justify-center py-16 text-center max-w-md mx-auto">
-            <div className="w-16 h-16 rounded-2xl bg-[#141416] border border-white/10 flex items-center justify-center text-white mb-6 shadow-sm">
-              <QrCode className="w-8 h-8 text-white" />
+            <div className="w-16 h-16 rounded-sm bg-panel border border-hair flex items-center justify-center text-ink mb-6">
+              <QrCode className="w-8 h-8 text-ink" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Sign in to Access Your Active Pass</h2>
-            <p className="text-xs sm:text-sm text-zinc-400 mb-6 leading-relaxed">
+            <h2 className="text-xl font-bold text-ink mb-2">Sign in to Access Your Active Pass</h2>
+            <p className="text-xs sm:text-sm text-ink2 mb-6 leading-relaxed">
               Your digital smart pass coordinates optical plate verification and automatically raises the SG90 boom barrier upon vehicle arrival.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 w-full">
               <Link
                 href="/login"
-                className="district-btn-primary flex-1 py-3 px-5 text-xs font-bold flex items-center justify-center gap-2 shadow-sm"
+                className="district-btn-primary flex-1 py-3 px-5 text-xs font-bold flex items-center justify-center gap-2"
               >
                 <span>Sign In to Account</span>
                 <ArrowRight className="w-4 h-4" />
@@ -346,19 +346,19 @@ export default function PassPage() {
         ) : statusData?.active_session ? (
           /* STATE 1: VEHICLE IS INSIDE & PARKED IN BAY (Monochrome Style) */
           <div className="space-y-6">
-            <div className="district-card p-6 sm:p-8 bg-[#121214] border border-white/[0.08] shadow-sm">
-              <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-white/[0.08]">
+            <div className="district-card p-6 sm:p-8 bg-panel border border-hair">
+              <div className="flex flex-wrap items-center justify-between gap-4 pb-6 border-b border-hair">
                 <div className="flex items-center gap-3">
                   <span className="flex h-3 w-3 relative">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500"></span>
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-sm bg-ok opacity-75"></span>
+                    <span className="relative inline-flex rounded-sm h-3 w-3 bg-ok"></span>
                   </span>
-                  <span className="text-xs uppercase tracking-widest font-bold text-emerald-400">
+                  <span className="text-xs uppercase tracking-widest font-bold text-ok">
                     Active Parking Session in Progress
                   </span>
                 </div>
-                <div className="flex items-center gap-2 px-3 py-1 rounded-full bg-[#18181B] border border-white/[0.08] text-xs text-white">
-                  <Car className="w-3.5 h-3.5 text-zinc-300" />
+                <div className="flex items-center gap-2 px-3 py-1 rounded-sm bg-panel2 border border-hair text-xs text-ink">
+                  <Car className="w-3.5 h-3.5 text-ink2" />
                   <span className="font-mono font-bold tracking-wider">{statusData.active_session.plate_number}</span>
                 </div>
               </div>
@@ -366,19 +366,19 @@ export default function PassPage() {
               {/* Bay Allocation Display */}
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-6 items-center">
                 <div className="md:col-span-2 space-y-3">
-                  <span className="text-xs font-bold uppercase text-zinc-400 tracking-wider">
+                  <span className="text-xs font-bold uppercase text-ink2 tracking-wider">
                     Designated Parking Bay
                   </span>
                   <div className="flex items-baseline gap-4">
-                    <span className="text-5xl sm:text-6xl font-black tracking-tight text-white font-mono">
+                    <span className="text-5xl sm:text-6xl font-semibold tracking-tight text-ink font-mono">
                       BAY {statusData.active_session.slot_number}
                     </span>
-                    <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold">
+                    <span className="text-xs px-2.5 py-0.5 rounded-sm bg-ok/10 text-ok border border-ok/50 font-bold">
                       Vehicle Parked
                     </span>
                   </div>
-                  <p className="text-xs sm:text-sm text-zinc-300 flex items-center gap-2">
-                    <Navigation className="w-4 h-4 text-white" />
+                  <p className="text-xs sm:text-sm text-ink2 flex items-center gap-2">
+                    <Navigation className="w-4 h-4 text-ink" />
                     <span>
                       Zone {statusData.active_session.slot_number.startsWith('A') ? 'A (North Deck)' : 'B (South Deck)'} • Follow illuminated bay overhead lane markers.
                     </span>
@@ -386,23 +386,23 @@ export default function PassPage() {
                 </div>
 
                 {/* Live Ticking Parking Timer */}
-                <div className="rounded-2xl bg-[#09090B] border border-white/[0.08] p-5 flex flex-col justify-between shadow-sm">
+                <div className="rounded-sm bg-concrete border border-hair p-5 flex flex-col justify-between">
                   <div>
-                    <div className="flex items-center justify-between text-xs text-zinc-400 mb-1">
+                    <div className="flex items-center justify-between text-xs text-ink2 mb-1">
                       <span className="flex items-center gap-1.5 font-medium">
-                        <Clock className="w-3.5 h-3.5 text-zinc-300" />
+                        <Clock className="w-3.5 h-3.5 text-ink2" />
                         Elapsed Duration
                       </span>
-                      <span className="text-[10px] text-emerald-400 font-mono animate-pulse">● LIVE</span>
+                      <span className="text-[10px] text-ok font-mono">● Live</span>
                     </div>
-                    <div className="text-3xl font-black font-mono tracking-tight text-white">
+                    <div className="text-3xl font-semibold font-mono tracking-tight text-ink">
                       {formatElapsed(elapsedSeconds)}
                     </div>
                   </div>
 
-                  <div className="mt-4 pt-3 border-t border-white/[0.06] flex items-center justify-between">
-                    <span className="text-xs text-zinc-400">Accrued Parking Fee</span>
-                    <span className="text-base font-bold text-white flex items-center">
+                  <div className="mt-4 pt-3 border-t border-hair flex items-center justify-between">
+                    <span className="text-xs text-ink2">Accrued Parking Fee</span>
+                    <span className="text-base font-bold text-ink flex items-center">
                       <IndianRupee className="w-3.5 h-3.5 mr-0.5" />
                       {calculateEstimatedFee(elapsedSeconds)}
                     </span>
@@ -411,27 +411,27 @@ export default function PassPage() {
               </div>
 
               {/* Wayfinding Instructions */}
-              <div className="mt-6 rounded-2xl bg-[#141416] border border-white/[0.08] p-4">
-                <h4 className="text-xs font-bold uppercase tracking-wider text-white mb-2 flex items-center gap-1.5">
-                  <Compass className="w-4 h-4 text-zinc-300" />
+              <div className="mt-6 rounded-sm bg-panel border border-hair p-4">
+                <h4 className="text-xs font-bold uppercase tracking-wider text-ink mb-2 flex items-center gap-1.5">
+                  <Compass className="w-4 h-4 text-ink2" />
                   Departure Clearance Procedure
                 </h4>
-                <p className="text-xs sm:text-sm text-zinc-300 leading-relaxed">
-                  When ready to depart, drive vehicle directly toward the <strong className="text-white">Exit Gate</strong>. The Exit ESP32-CAM will verify plate <span className="font-mono text-white font-bold">{statusData.active_session.plate_number}</span>, calculate duration, and automatically signal the servo to raise the boom barrier to 90°.
+                <p className="text-xs sm:text-sm text-ink2 leading-relaxed">
+                  When ready to depart, drive vehicle directly toward the <strong className="text-ink">Exit Gate</strong>. The Exit ESP32-CAM will verify plate <span className="font-mono text-ink font-bold">{statusData.active_session.plate_number}</span>, calculate duration, and automatically signal the servo to raise the boom barrier to 90°.
                 </p>
               </div>
             </div>
 
             {/* Quick Actions */}
-            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-2xl bg-[#121214] border border-white/[0.08]">
-              <div className="flex items-center gap-2 text-xs text-zinc-400">
-                <Calendar className="w-4 h-4 text-zinc-300" />
+            <div className="flex flex-wrap items-center justify-between gap-4 p-4 rounded-sm bg-panel border border-hair">
+              <div className="flex items-center gap-2 text-xs text-ink2">
+                <Calendar className="w-4 h-4 text-ink2" />
                 <span>Parked at: {new Date(statusData.active_session.entry_time).toLocaleTimeString()}</span>
               </div>
               <div className="flex items-center gap-3">
                 <Link
                   href="/operator"
-                  className="inline-flex items-center gap-1.5 text-xs text-zinc-300 hover:text-white font-semibold transition-colors"
+                  className="inline-flex items-center gap-1.5 text-xs text-ink2 hover:text-ink font-semibold transition-colors"
                 >
                   <span>View in Facility 2D Twin</span>
                   <ChevronRight className="w-3.5 h-3.5" />
@@ -442,65 +442,65 @@ export default function PassPage() {
         ) : statusData?.active_booking ? (
           /* STATE 2: PRE-BOOKED PASS WAITING AT ENTRY GATE (Monochrome Ticket Design) */
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="md:col-span-2 district-card p-6 sm:p-8 bg-[#121214] border border-white/[0.08] shadow-sm">
-              <div className="flex items-center justify-between pb-5 border-b border-white/[0.08]">
+            <div className="md:col-span-2 district-card p-6 sm:p-8 bg-panel border border-hair">
+              <div className="flex items-center justify-between pb-5 border-b border-hair">
                 <div className="flex items-center gap-3">
-                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></div>
-                  <span className="text-xs font-bold uppercase tracking-wider text-white">
+                  <div className="w-2.5 h-2.5 rounded-full bg-ok"></div>
+                  <span className="text-xs font-bold uppercase tracking-wider text-ink">
                     Confirmed Gate Pass • Clear to Enter
                   </span>
                 </div>
-                <span className="text-xs font-mono px-2.5 py-0.5 rounded-full bg-[#18181B] text-zinc-300 border border-white/[0.08]">
+                <span className="text-xs font-mono px-2.5 py-0.5 rounded-sm bg-panel2 text-ink2 border border-hair">
                   REF #{statusData.active_booking.id}
                 </span>
               </div>
 
               <div className="my-6 space-y-5">
                 {/* Reserved Parking Bay Showcase */}
-                <div className="p-4 sm:p-5 rounded-2xl bg-[#09090B] border border-white/[0.1] flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="p-4 sm:p-5 rounded-sm bg-concrete border border-hair flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                    <span className="text-[11px] font-bold uppercase tracking-wider text-ink2">
                       Reserved Parking Bay
                     </span>
                     <div className="flex items-baseline gap-3 mt-1">
-                      <span className="text-4xl sm:text-5xl font-black font-mono tracking-tight text-white">
+                      <span className="text-4xl sm:text-5xl font-semibold font-mono tracking-tight text-ink">
                         BAY {statusData.active_booking.slot_number || 'A1'}
                       </span>
-                      <span className="text-xs px-2.5 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 font-bold">
+                      <span className="text-xs px-2.5 py-0.5 rounded-sm bg-ok/10 text-ok border border-ok/50 font-bold">
                         Guaranteed Hold
                       </span>
                     </div>
-                    <p className="text-xs text-zinc-400 mt-1 flex items-center gap-1.5">
-                      <MapPin className="w-3.5 h-3.5 text-zinc-300" />
+                    <p className="text-xs text-ink2 mt-1 flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-ink2" />
                       <span>
                         {statusData.active_booking.slot_number?.startsWith('B') ? 'Zone B (South Deck)' : 'Zone A (North Deck)'} • Follow illuminated overhead indicators upon entry.
                       </span>
                     </p>
                   </div>
 
-                  <div className="px-4 py-3 rounded-xl bg-[#141416] border border-white/[0.08] text-left sm:text-right sm:self-center">
-                    <span className="text-[10px] uppercase font-bold text-zinc-400 block">Registered Plate</span>
-                    <span className="text-base font-black font-mono tracking-wider text-white">
+                  <div className="px-4 py-3 rounded-sm bg-panel border border-hair text-left sm:text-right sm:self-center">
+                    <span className="text-[10px] uppercase font-bold text-ink2 block">Registered Plate</span>
+                    <span className="text-base font-semibold font-mono tracking-wider text-ink">
                       {statusData.active_booking.plate_number}
                     </span>
-                    <span className="text-[11px] text-zinc-400 block mt-0.5">
+                    <span className="text-[11px] text-ink2 block mt-0.5">
                       {statusData.active_booking.vehicle_type}
                     </span>
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 pt-3 border-t border-white/[0.06]">
+                <div className="grid grid-cols-2 gap-4 pt-3 border-t border-hair">
                   <div>
-                    <span className="text-xs text-zinc-400">Pass Validity</span>
-                    <p className="text-sm font-semibold text-white mt-0.5">
+                    <span className="text-xs text-ink2">Pass Validity</span>
+                    <p className="text-sm font-semibold text-ink mt-0.5">
                       {statusData.active_booking.expires_at
                         ? new Date(statusData.active_booking.expires_at).toLocaleTimeString()
                         : 'Within 2 Hours'}
                     </p>
                   </div>
                   <div>
-                    <span className="text-xs text-zinc-400">Gate Boom Barrier</span>
-                    <p className="text-sm font-semibold text-emerald-400 flex items-center gap-1 mt-0.5">
+                    <span className="text-xs text-ink2">Gate Boom Barrier</span>
+                    <p className="text-sm font-semibold text-ok flex items-center gap-1 mt-0.5">
                       <Zap className="w-3.5 h-3.5" />
                       Optical ANPR Armed (90°)
                     </p>
@@ -509,28 +509,28 @@ export default function PassPage() {
               </div>
 
               {/* Hardware Clearance Notice */}
-              <div className="rounded-2xl bg-[#141416] border border-white/[0.08] p-4 text-xs text-zinc-300 space-y-2">
-                <p className="font-semibold text-white flex items-center gap-1.5">
-                  <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              <div className="rounded-sm bg-panel border border-hair p-4 text-xs text-ink2 space-y-2">
+                <p className="font-semibold text-ink flex items-center gap-1.5">
+                  <CheckCircle2 className="w-4 h-4 text-ok" />
                   Automated Gate Clearance Protocol
                 </p>
-                <p className="leading-relaxed text-zinc-400">
-                  As you reach the entrance, the <strong className="text-white">ESP32-CAM optical sensor</strong> will scan your license plate (<span className="text-white font-mono font-bold">{statusData.active_booking.plate_number}</span>). The barrier servo will automatically swing up to 90° for 5 seconds and route you directly to <strong className="text-white">Bay {statusData.active_booking.slot_number || 'A1'}</strong>.
+                <p className="leading-relaxed text-ink2">
+                  As you reach the entrance, the <strong className="text-ink">ESP32-CAM optical sensor</strong> will scan your license plate (<span className="text-ink font-mono font-bold">{statusData.active_booking.plate_number}</span>). The barrier servo will automatically swing up to 90° for 5 seconds and route you directly to <strong className="text-ink">Bay {statusData.active_booking.slot_number || 'A1'}</strong>.
                 </p>
               </div>
 
               {/* Action Buttons */}
-              <div className="mt-6 pt-5 border-t border-white/[0.08] flex items-center justify-between gap-4">
+              <div className="mt-6 pt-5 border-t border-hair flex items-center justify-between gap-4">
                 <button
                   onClick={handleCancelBooking}
                   disabled={cancelling}
-                  className="text-xs text-zinc-400 hover:text-white font-semibold transition-colors"
+                  className="text-xs text-ink2 hover:text-ink font-semibold transition-colors"
                 >
                   {cancelling ? 'Cancelling...' : 'Cancel Pre-Booking'}
                 </button>
                 <Link
                   href="/operator"
-                  className="inline-flex items-center gap-1.5 text-xs text-white hover:text-zinc-300 font-bold"
+                  className="inline-flex items-center gap-1.5 text-xs text-ink hover:text-ink2 font-bold"
                 >
                   <span>Monitor Entry Feed</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -539,19 +539,19 @@ export default function PassPage() {
             </div>
 
             {/* QR Code / Digital Verification Visual */}
-            <div className="district-card p-6 bg-[#121214] border border-white/[0.08] flex flex-col items-center justify-center text-center">
-              <span className="text-xs uppercase font-bold text-zinc-400 tracking-wider mb-4">
+            <div className="district-card p-6 bg-panel border border-hair flex flex-col items-center justify-center text-center">
+              <span className="text-xs uppercase font-bold text-ink2 tracking-wider mb-4">
                 Digital Pass Hologram
               </span>
 
-              <div className="p-4 rounded-2xl bg-white text-black shadow-lg flex flex-col items-center justify-center">
+              <div className="p-4 rounded-sm bg-ink text-panel shadow-none flex flex-col items-center justify-center">
                 <QrCode className="w-36 h-36" />
-                <span className="text-[10px] font-mono font-bold tracking-widest mt-2 uppercase text-zinc-900">
+                <span className="text-[10px] font-mono font-bold tracking-widest mt-2 uppercase text-[#BCB6A7]">
                   AUTOPARK-{(statusData.active_booking.plate_number || 'VEHICLE').replace(/\s+/g, '')}
                 </span>
               </div>
 
-              <p className="text-xs text-zinc-400 mt-4 max-w-[200px] leading-relaxed">
+              <p className="text-xs text-ink2 mt-4 max-w-[200px] leading-relaxed">
                 Optical camera scans plate directly. Present this QR only if manual verification is requested.
               </p>
             </div>
@@ -559,11 +559,11 @@ export default function PassPage() {
         ) : (
           /* STATE 3: NO ACTIVE BOOKING OR PASS (Monochrome) */
           <div className="flex-1 flex flex-col items-center justify-center py-16 text-center max-w-lg mx-auto">
-            <div className="district-squircle w-16 h-16 rounded-2xl bg-[#141416] border-white/10 text-white mb-6">
-              <Car className="w-8 h-8 text-white" />
+            <div className="district-squircle w-16 h-16 rounded-sm bg-panel border-hair text-ink mb-6">
+              <Car className="w-8 h-8 text-ink" />
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">No Active Parking Pass</h2>
-            <p className="text-xs sm:text-sm text-zinc-400 mb-6 leading-relaxed">
+            <h2 className="text-xl font-bold text-ink mb-2">No Active Parking Pass</h2>
+            <p className="text-xs sm:text-sm text-ink2 mb-6 leading-relaxed">
               You do not currently have a reserved slot or active parking session. To enter the facility through the automated servo gate, reserve a slot in advance.
             </p>
             <div className="flex flex-col sm:flex-row gap-3 w-full justify-center">
@@ -589,7 +589,7 @@ export default function PassPage() {
               </button>
               <Link
                 href="/book"
-                className="district-btn-primary py-3 px-6 text-xs font-bold flex items-center justify-center gap-2 shadow-sm"
+                className="district-btn-primary py-3 px-6 text-xs font-bold flex items-center justify-center gap-2"
               >
                 <span>Reserve a Slot Now</span>
                 <ArrowRight className="w-4 h-4" />

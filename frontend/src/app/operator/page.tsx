@@ -19,15 +19,7 @@ import {
   ExitReceiptData,
 } from '../../lib/types';
 import { getApiBaseUrl, getWsUrl } from '../../lib/config';
-import {
-  ShieldAlert,
-  AlertTriangle,
-  RefreshCw,
-  Cpu,
-  Radio,
-  Sliders,
-  Sparkles,
-} from 'lucide-react';
+import { AlertTriangle, RefreshCw, X } from 'lucide-react';
 
 export default function OperatorPage() {
   const [slots, setSlots] = useState<ParkingSlotData[]>([]);
@@ -44,6 +36,7 @@ export default function OperatorPage() {
   const [loading, setLoading] = useState<boolean>(false);
   const [diagnostics, setDiagnostics] = useState<DiagnosticEvent[]>([]);
   const [exitReceipt, setExitReceipt] = useState<ExitReceiptData | null>(null);
+  const [clock, setClock] = useState<string>('');
 
   // Entry and Exit Camera Detection States
   const [entryDetection, setEntryDetection] = useState<CameraDetectionState>({
@@ -100,6 +93,22 @@ export default function OperatorPage() {
     triggerBuzzer: false,
   });
 
+  // Shift clock — the console should be able to say what time it is.
+  useEffect(() => {
+    const tick = () =>
+      setClock(
+        new Date().toLocaleTimeString([], {
+          hour: '2-digit',
+          minute: '2-digit',
+          second: '2-digit',
+          hour12: false,
+        })
+      );
+    tick();
+    const id = setInterval(tick, 1000);
+    return () => clearInterval(id);
+  }, []);
+
   const addEventLog = (
     message: string,
     type: ActivityEvent['type'],
@@ -108,7 +117,12 @@ export default function OperatorPage() {
   ) => {
     const newEvt: ActivityEvent = {
       id: Math.random().toString(36).substring(7),
-      timestamp: new Date().toLocaleTimeString(),
+      timestamp: new Date().toLocaleTimeString([], {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+      }),
       message,
       type,
       slot,
@@ -267,7 +281,7 @@ export default function OperatorPage() {
             // Backend sends `vehicle`, older payloads used `vehicle_type`.
             const vehicle = data.vehicle ?? data.vehicle_type ?? 'Vehicle';
             addEventLog(
-              `Entry Gate: ${vehicle} (${data.plate_number || 'Detected'}) assigned to Slot ${data.slot}`,
+              `Entry — ${vehicle.toLowerCase()} ${data.plate_number || 'detected'} · bay ${data.slot}`,
               'allocated',
               data.slot,
               data.plate_number
@@ -286,18 +300,18 @@ export default function OperatorPage() {
               status: 'ALLOCATED',
               confidence: data.confidence ?? null,
               plate_number: data.plate_number,
-              message: `Entry Authorized: Vehicle assigned to Slot ${data.slot}. Entry Boom Barrier raised (90°)!`,
+              message: `Plate matched an open booking. Barrier lifted for bay ${data.slot}.`,
               camera_online_status: 'ONLINE',
               last_frame_timestamp: Date.now(),
             }));
           } else if (type === 'slot.released') {
             exitLastSeenRef.current = Date.now();
             fetchParkingState();
-            addEventLog(`Slot ${data.slot} vacated & ready for booking`, 'released', data.slot);
+            addEventLog(`Bay ${data.slot} released`, 'released', data.slot);
           } else if (type === 'barrier.entry') {
             entryLastSeenRef.current = Date.now();
             addEventLog(
-              `Servo Barrier: Entry Gate lifted to 90° for ${data.plate ?? 'vehicle'} -> Bay ${data.slot ?? '—'}`,
+              `Entry barrier up · ${data.plate ?? 'vehicle'} · bay ${data.slot ?? '—'}`,
               'barrier',
               data.slot,
               data.plate
@@ -306,7 +320,7 @@ export default function OperatorPage() {
             exitLastSeenRef.current = Date.now();
             fetchParkingState();
             addEventLog(
-              `Exit Gate: ${data.plate_number || 'Vehicle'} departed from Slot ${data.slot ?? '—'}`,
+              `Exit — ${data.plate_number || 'vehicle'} left bay ${data.slot ?? '—'}`,
               'exited',
               data.slot,
               data.plate_number
@@ -315,10 +329,10 @@ export default function OperatorPage() {
             setExitDetection((prev) => ({
               ...prev,
               slot: data.slot ?? null,
-              status: 'ALLOCATED',
+              status: 'RELEASED',
               confidence: null,
               plate_number: data.plate_number ?? null,
-              message: `Exit Authorized: ${data.plate_number || 'Vehicle'} departed. Boom barrier opened (90°)!`,
+              message: 'Session closed, bay freed and receipt issued.',
               camera_online_status: 'ONLINE',
               last_frame_timestamp: Date.now(),
             }));
@@ -328,12 +342,18 @@ export default function OperatorPage() {
               plateNumber: data.plate_number ?? '—',
               durationFormatted: data.duration_formatted ?? '—',
               billedAmount: data.billed_amount ?? null,
-              exitTime: new Date().toLocaleTimeString(),
+              exitTime: new Date().toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit',
+                hour12: false,
+              }),
             });
           } else if (type === 'barrier.exit') {
             exitLastSeenRef.current = Date.now();
             addEventLog(
-              `Servo Barrier: Exit Gate lifted to 90° for ${data.plate ?? 'vehicle'}${data.billed_amount != null ? ` • Fee ₹${data.billed_amount}` : ''}`,
+              `Exit barrier up · ${data.plate ?? 'vehicle'}${
+                data.billed_amount != null ? ` · ₹${data.billed_amount}` : ''
+              }`,
               'barrier',
               data.slot,
               data.plate
@@ -341,7 +361,7 @@ export default function OperatorPage() {
           } else if (type === 'entry.unauthorized') {
             entryLastSeenRef.current = Date.now();
             addEventLog(
-              `Access Denied: Unregistered vehicle (${data.plate_number || 'UNKNOWN'}). Barrier remains locked at 0°.`,
+              `Entry refused — ${data.plate_number || 'unknown plate'} · no open booking`,
               'unauthorized',
               undefined,
               data.plate_number
@@ -349,7 +369,7 @@ export default function OperatorPage() {
 
             setUnauthorizedWarning({
               plateNumber: data.plate_number || 'UNKNOWN',
-              message: data.message || 'Advance booking required. Entry boom barrier is locked (0°).',
+              message: data.message || 'No open booking matches this plate. Barrier stayed down.',
             });
 
             setEntryDetection((prev) => ({
@@ -357,19 +377,19 @@ export default function OperatorPage() {
               plate_number: data.plate_number,
               status: 'UNAUTHORIZED',
               confidence: data.confidence ?? null,
-              message: 'ENTRY REJECTED: No advance reservation found.',
+              message: 'No open booking matches this plate.',
               camera_online_status: 'ONLINE',
               last_frame_timestamp: Date.now(),
             }));
           } else if (type === 'parking.full') {
-            addEventLog('Parking capacity reached! All 6 bays occupied.', 'full');
+            addEventLog('Facility full — all 6 bays occupied', 'full');
           } else if (type === 'demo.reset' || type === 'parking.reset') {
             setAssignedBanner({ slot: null, vehicleType: '', plateNumber: null, triggerBuzzer: false });
             setUnauthorizedWarning(null);
             setExitReceipt(null);
             fetchParkingState();
             fetchDiagnostics();
-            addEventLog('Facility reset: All slots reset to AVAILABLE', 'reset');
+            addEventLog('Facility reset — all bays available', 'reset');
           } else if (type === 'booking.created' || type === 'booking.cancelled') {
             fetchParkingState();
           }
@@ -408,7 +428,7 @@ export default function OperatorPage() {
       const res = await fetch(`${apiBase}/api/parking/release/${slotNumber}`, { method: 'POST' });
       if (res.ok) {
         fetchParkingState();
-        addEventLog(`Slot ${slotNumber} manually cleared by operator`, 'released', slotNumber);
+        addEventLog(`Bay ${slotNumber} released by operator`, 'released', slotNumber);
       }
     } catch {
       alert('Failed to release slot');
@@ -448,7 +468,7 @@ export default function OperatorPage() {
   };
 
   const handleResetDemo = async () => {
-    if (!confirm('Reset all 6 slots and clear active sessions?')) return;
+    if (!confirm('Reset all 6 bays and clear active sessions?')) return;
     setLoading(true);
     try {
       const res = await fetch(`${apiBase}/api/parking/reset`, { method: 'POST' });
@@ -466,107 +486,91 @@ export default function OperatorPage() {
   };
 
   return (
-    <div className="min-h-screen bg-districtBg text-white flex flex-col selection:bg-white/20 selection:text-white relative">
-      <Navbar />
+    <div className="min-h-screen bg-concrete text-ink flex flex-col">
+      <Navbar wsConnected={wsConnected} />
 
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 py-6 flex flex-col relative z-10">
-        {/* Operator Console Header Bar */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-white/[0.08]">
+      <main className="flex-1 w-full max-w-[1440px] mx-auto px-4 sm:px-6 py-5">
+        {/* Page head */}
+        <div className="flex flex-wrap items-end gap-x-5 gap-y-2 pb-3.5">
           <div>
-            <div className="flex items-center gap-2 text-zinc-400 text-xs font-bold tracking-wider uppercase mb-1">
-              <Cpu className="w-4 h-4 text-zinc-400" />
-              <span>Facility Command Center • Hardware-in-the-Loop</span>
-            </div>
-            <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight text-white flex items-center gap-3">
-              Operator &amp; Evaluator Console
+            <h1 className="font-sign font-bold text-[24px] tracking-[-0.02em] leading-none">
+              Operator console
             </h1>
-            <p className="text-xs sm:text-sm text-zinc-400 mt-1">
-              Live dual ESP32-CAM optical feeds, SG90 servo boom barrier telemetry, 2D digital twin, and simulation bench.
+            <p className="text-[12.5px] text-ink2 mt-1.5">
+              Live facility state and gate controls
             </p>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#18181B] border border-white/10 text-xs backdrop-blur-md shadow-sm">
-              <Radio className={`w-3.5 h-3.5 ${wsConnected ? 'text-emerald-400 animate-pulse' : 'text-zinc-500'}`} />
-              <span className="font-mono text-zinc-300">
-                {wsConnected ? 'Telemetry Stream LIVE' : 'WS Disconnected (Polling)'}
-              </span>
+          <div className="ml-auto flex items-center gap-3">
+            <div className="flex items-center gap-1.5 mono text-[10.5px] uppercase tracking-[0.08em] text-muted">
+              <span
+                className={`w-1.5 h-1.5 rounded-full ${wsConnected ? 'bg-ok' : 'bg-fault'}`}
+              />
+              {wsConnected ? 'stream linked' : 'polling'}
             </div>
-
+            <span className="mono text-[12px] tabular-nums">{clock}</span>
             <button
               onClick={() => {
                 fetchParkingState();
                 fetchDiagnostics();
               }}
-              className="district-btn-secondary inline-flex items-center gap-1.5 px-4 py-1.5 rounded-full text-xs font-semibold"
+              className="btn flex items-center gap-1.5"
             >
-              <RefreshCw className="w-3.5 h-3.5 text-zinc-300" />
-              <span>Refresh</span>
+              <RefreshCw className="w-3.5 h-3.5" />
+              Refresh
             </button>
           </div>
         </div>
 
-        {/* Offline / Error Warning */}
         {!systemOnline && (
-          <div className="mt-4 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 flex items-center gap-3 text-rose-300 text-xs">
-            <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
-            <span>
-              Backend API appears unreachable at <code className="font-mono">{apiBase}</code>. Ensure the FastAPI server is running.
-            </span>
+          <div className="mb-4 flex items-start gap-2.5 border border-fault bg-[#F6E7E2] px-3.5 py-2.5">
+            <AlertTriangle className="w-4 h-4 text-fault mt-0.5 shrink-0" />
+            <p className="text-[12px] text-ink">
+              Can&apos;t reach the backend at <span className="mono">{apiBase}</span>. Retrying
+              every 4&nbsp;s.
+            </p>
           </div>
         )}
 
-        {/* Unauthorized Entry Warning Alert */}
         {unauthorizedWarning && (
-          <div className="mt-4 p-4 rounded-2xl bg-amber-500/15 border-2 border-amber-500/60 shadow-xl flex items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 bg-amber-500 text-slate-950 rounded-xl font-bold">
-                <ShieldAlert className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-black uppercase tracking-wider text-amber-400">
-                    Gate Access Denied • Barrier Remains at 0°
-                  </span>
-                  <span className="px-2 py-0.5 rounded text-[11px] font-mono font-bold bg-black/60 text-white border border-amber-500/40">
-                    {unauthorizedWarning.plateNumber}
-                  </span>
-                </div>
-                <p className="text-xs text-slate-200 mt-0.5 font-medium">
-                  {unauthorizedWarning.message}
-                </p>
-              </div>
-            </div>
+          <div className="mb-4 flex flex-wrap items-center gap-3 bg-paint border border-paintDeep px-3.5 py-2.5">
+            <span className="mono text-[9.5px] uppercase tracking-[0.12em] border border-ink/40 px-1.5 py-0.5">
+              Attention
+            </span>
+            <p className="text-[13px] text-ink">
+              <b className="font-semibold">Entry refused</b> —{' '}
+              <span className="mono">{unauthorizedWarning.plateNumber}</span> has no open booking.
+              <span className="text-ink2"> Barrier stayed down.</span>
+            </p>
             <button
               onClick={() => setUnauthorizedWarning(null)}
-              className="text-xs font-bold text-slate-400 hover:text-white px-3 py-1 rounded bg-black/30 hover:bg-black/50 transition-colors"
+              className="ml-auto text-[11.5px] text-ink2 hover:text-ink inline-flex items-center gap-1"
             >
+              <X className="w-3.5 h-3.5" />
               Dismiss
             </button>
           </div>
         )}
 
-        {/* Metric Overview */}
-        <div className="mt-6">
-          <StatsOverview summary={summary} />
+        <StatsOverview summary={summary} />
+
+        <div className="mt-3.5">
+          <NotificationBanner
+            allocatedSlot={assignedBanner.slot}
+            vehicleType={assignedBanner.vehicleType}
+            plateNumber={assignedBanner.plateNumber}
+            triggerBuzzer={assignedBanner.triggerBuzzer}
+            onDismiss={() =>
+              setAssignedBanner({ slot: null, vehicleType: '', plateNumber: null, triggerBuzzer: false })
+            }
+          />
         </div>
 
-        {/* Entry Welcome / Banner */}
-        <NotificationBanner
-          allocatedSlot={assignedBanner.slot}
-          vehicleType={assignedBanner.vehicleType}
-          plateNumber={assignedBanner.plateNumber}
-          triggerBuzzer={assignedBanner.triggerBuzzer}
-          onDismiss={() => setAssignedBanner({ slot: null, vehicleType: '', plateNumber: null, triggerBuzzer: false })}
-        />
-
-        {/* 2D Digital Twin Layout */}
-        <div className="mt-6">
+        <div className="mt-4">
           <ParkingLayout slots={slots} onManualRelease={handleManualRelease} />
         </div>
 
-        {/* Dual ESP32-CAM Camera Feeds with Servo Boom Barrier Indicators */}
-        <div className="mt-6">
+        <div className="mt-4 grid grid-cols-1 lg:grid-cols-[1.5fr_1fr] gap-4 items-start">
           <LiveCameraFeed
             entryDetection={entryDetection}
             exitDetection={exitDetection}
@@ -578,29 +582,32 @@ export default function OperatorPage() {
               fetchDiagnostics();
             }}
           />
+
+          <div className="grid gap-4">
+            <LiveActivityLog events={events} />
+            <DemoControls
+              onSimulateEntry={handleSimulateEntry}
+              onSimulateExit={handleSimulateExit}
+              onResetDemo={handleResetDemo}
+              onManualReleaseSlot={handleManualRelease}
+              availableSlots={slots.filter((s) => s.status === 'AVAILABLE').map((s) => s.slot_number)}
+              loading={loading}
+            />
+          </div>
         </div>
 
-        {/* Simulation Bench & Live Audit Log */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <LiveActivityLog events={events} />
-
-          <DemoControls
-            onSimulateEntry={handleSimulateEntry}
-            onSimulateExit={handleSimulateExit}
-            onResetDemo={handleResetDemo}
-            onManualReleaseSlot={handleManualRelease}
-            availableSlots={slots.filter((s) => s.status === 'AVAILABLE').map((s) => s.slot_number)}
-            loading={loading}
-          />
-        </div>
+        <footer className="mt-5 pt-2.5 border-t border-hair flex flex-wrap items-center gap-4 text-[11px] text-muted">
+          <span className="kicker">Facility</span>
+          <span>Sanjay Nagar · 6 bays · 2 gates</span>
+          <span className="ml-auto flex items-center gap-4">
+            <span className="mono">demo database</span>
+            <span className="mono">{wsConnected ? 'websocket' : 'http polling'}</span>
+          </span>
+        </footer>
       </main>
 
-      {/* Exit Digital Receipt Modal */}
       {exitReceipt && (
-        <ExitReceiptModal
-          receipt={exitReceipt}
-          onClose={() => setExitReceipt(null)}
-        />
+        <ExitReceiptModal receipt={exitReceipt} onClose={() => setExitReceipt(null)} />
       )}
     </div>
   );

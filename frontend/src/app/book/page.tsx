@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Navbar } from '../../components/Navbar';
 import {
   Car,
+  Truck,
   CalendarCheck,
   Clock,
   ShieldCheck,
@@ -182,23 +183,23 @@ function BookForm() {
   ];
 
   return (
-    <div className="district-card overflow-hidden grid grid-cols-1 md:grid-cols-5 border border-white/[0.08] shadow-districtCard">
+    <div className="district-card overflow-hidden grid grid-cols-1 md:grid-cols-5 border border-hair shadow-districtCard">
       {/* Left Form (3 cols) */}
-      <div className="p-6 sm:p-8 md:col-span-3 bg-[#121214]">
+      <div className="p-6 sm:p-8 md:col-span-3 bg-panel">
         {error && (
-          <div className="mb-6 p-4 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs font-bold flex items-center gap-2.5">
-            <AlertCircle className="w-4 h-4 shrink-0 text-rose-400" />
+          <div className="mb-6 p-4 rounded-sm bg-fault/10 border border-fault text-fault text-xs font-bold flex items-center gap-2.5">
+            <AlertCircle className="w-4 h-4 shrink-0 text-fault" />
             <span>{error}</span>
           </div>
         )}
 
         {success ? (
           <div className="py-16 flex flex-col items-center justify-center text-center">
-            <div className="w-16 h-16 rounded-2xl bg-white text-black flex items-center justify-center mb-4 shadow-sm">
+            <div className="w-16 h-16 rounded-sm bg-ink text-panel flex items-center justify-center mb-4">
               <CheckCircle2 className="w-10 h-10 animate-bounce" />
             </div>
-            <h3 className="text-xl font-black text-white">Bay {selectedSlot} Reserved!</h3>
-            <p className="text-xs text-zinc-400 mt-1">
+            <h3 className="text-xl font-semibold text-ink">Bay {selectedSlot} Reserved!</h3>
+            <p className="text-xs text-ink2 mt-1">
               Opening active gate clearance pass with designated bay routing...
             </p>
           </div>
@@ -207,10 +208,10 @@ function BookForm() {
             {/* 1. Select Parking Bay */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="block text-xs font-bold uppercase tracking-wider text-zinc-300">
+                <label className="block text-xs font-bold uppercase tracking-wider text-ink2">
                   Select Parking Bay
                 </label>
-                <span className="text-xs font-mono text-zinc-400">
+                <span className="text-xs font-mono text-ink2">
                   {selectedSlot ? `Bay ${selectedSlot} Selected` : 'Choose a bay'}
                 </span>
               </div>
@@ -228,15 +229,15 @@ function BookForm() {
                       type="button"
                       disabled={!isVacant && !isSelected}
                       onClick={() => setSelectedSlot(bay.slot_number)}
-                      className={`p-3 rounded-xl border text-center transition-all flex flex-col items-center justify-center gap-1 ${
+                      className={`p-3 rounded-sm border text-center transition-all flex flex-col items-center justify-center gap-1 ${
                         isSelected
-                          ? 'bg-white text-black border-white ring-2 ring-white/20 shadow-md font-black'
+                          ? 'bg-ink text-panel border-ink font-semibold'
                           : isVacant
-                          ? 'bg-[#18181B] text-zinc-300 border-white/[0.08] hover:border-white/30 hover:text-white cursor-pointer'
-                          : 'bg-[#141416]/50 text-zinc-600 border-white/[0.04] cursor-not-allowed opacity-60'
+                          ? 'bg-panel2 text-ink2 border-hair hover:border-ink hover:text-ink cursor-pointer'
+                          : 'bg-panel2/60 text-muted border-hair cursor-not-allowed opacity-60'
                       }`}
                     >
-                      <span className="text-xs font-black font-mono">
+                      <span className="text-xs font-semibold font-mono">
                         {bay.slot_number}
                       </span>
                       <span
@@ -244,10 +245,10 @@ function BookForm() {
                           isSelected
                             ? 'text-black'
                             : isVacant
-                            ? 'text-emerald-400'
+                            ? 'text-ok'
                             : isOccupied
-                            ? 'text-rose-400'
-                            : 'text-amber-400'
+                            ? 'text-fault'
+                            : 'text-[#8A6A1E]'
                         }`}
                       >
                         {isSelected ? 'SELECTED' : isVacant ? 'VACANT' : isOccupied ? 'BUSY' : 'HELD'}
@@ -256,15 +257,15 @@ function BookForm() {
                   );
                 })}
               </div>
-              <p className="text-[11px] text-zinc-400 mt-1.5 flex items-center gap-1.5">
-                <Layers className="w-3.5 h-3.5 text-zinc-400" />
+              <p className="text-[11px] text-ink2 mt-1.5 flex items-center gap-1.5">
+                <Layers className="w-3.5 h-3.5 text-ink2" />
                 <span>Zone A: Bays A1–A3 (North Deck) • Zone B: Bays B1–B3 (South Deck)</span>
               </p>
             </div>
 
             {/* 2. License Plate Input */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-300 mb-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-ink2 mb-2">
                 Vehicle License Plate Number
               </label>
               <div className="relative">
@@ -274,39 +275,39 @@ function BookForm() {
                   placeholder="e.g. DL-01-AB-1234"
                   value={plateNumber}
                   onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
-                  className="w-full px-4 py-3 rounded-xl bg-[#18181B] border border-white/[0.1] text-white font-mono text-base font-black tracking-widest uppercase focus:border-white focus:ring-1 focus:ring-white/20 outline-none transition-all placeholder-zinc-500"
+                  className="w-full px-4 py-3 rounded-sm bg-panel2 border border-hair2 focus:border-ink text-ink font-mono text-base font-semibold tracking-widest uppercase  outline-none transition-all placeholder-muted"
                 />
-                <span className="absolute right-3.5 top-3 px-2 py-0.5 rounded bg-black/60 text-[10px] font-bold text-amber-400 font-mono border border-amber-400/30">
+                <span className="absolute right-3.5 top-3 px-2 py-0.5 rounded bg-ink/10 text-[10px] font-bold text-[#8A6A1E] font-mono border border-paintDeep">
                   IND
                 </span>
               </div>
-              <p className="text-[11px] text-zinc-400 mt-1.5">
+              <p className="text-[11px] text-ink2 mt-1.5">
                 Our optical camera ANPR matches this license plate at the gate to raise the boom barrier.
               </p>
             </div>
 
             {/* 3. Vehicle Type Selector */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-300 mb-2">
+              <label className="block text-xs font-bold uppercase tracking-wider text-ink2 mb-2">
                 Vehicle Category
               </label>
               <div className="grid grid-cols-3 gap-2.5">
                 {[
-                  { id: 'Car', label: 'Car / Sedan', icon: '🚗' },
-                  { id: 'SUV', label: 'SUV / 4x4', icon: '🚙' },
-                  { id: 'EV', label: 'Electric EV', icon: '⚡' },
+                  { id: 'Car', label: 'Car / Sedan', Icon: Car },
+                  { id: 'SUV', label: 'SUV / 4x4', Icon: Truck },
+                  { id: 'EV', label: 'Electric EV', Icon: Zap },
                 ].map((v) => (
                   <button
                     key={v.id}
                     type="button"
                     onClick={() => setVehicleType(v.id)}
-                    className={`p-3 rounded-xl border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
+                    className={`p-3 rounded-sm border text-xs font-bold flex flex-col items-center gap-1.5 transition-all ${
                       vehicleType === v.id
-                        ? 'bg-white text-black border-white shadow-sm'
-                        : 'bg-[#18181B] border-white/[0.08] text-zinc-400 hover:bg-[#202026] hover:text-white'
+                        ? 'bg-ink text-panel border-ink'
+                        : 'bg-panel2 border-hair text-ink2 hover:bg-panel hover:text-ink'
                     }`}
                   >
-                    <span className="text-xl">{v.icon}</span>
+                    <v.Icon className="w-4 h-4" strokeWidth={1.6} />
                     <span>{v.label}</span>
                   </button>
                 ))}
@@ -316,10 +317,10 @@ function BookForm() {
             {/* 4. Duration Selector */}
             <div>
               <div className="flex items-center justify-between mb-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-zinc-300">
+                <label className="text-xs font-bold uppercase tracking-wider text-ink2">
                   Expected Parking Duration
                 </label>
-                <span className="text-xs font-bold text-white font-mono">
+                <span className="text-xs font-bold text-ink font-mono">
                   {durationHours} {durationHours === 1 ? 'Hour' : 'Hours'}
                 </span>
               </div>
@@ -332,7 +333,7 @@ function BookForm() {
                 onChange={(e) => setDurationHours(Number(e.target.value))}
                 className="w-full accent-white cursor-pointer"
               />
-              <div className="flex justify-between text-[10px] text-zinc-400 font-mono mt-1">
+              <div className="flex justify-between text-[10px] text-ink2 font-mono mt-1">
                 <span>1h</span>
                 <span>2h</span>
                 <span>4h</span>
@@ -345,7 +346,7 @@ function BookForm() {
             <button
               type="submit"
               disabled={loading || availableSlotsCount <= 0 || !selectedSlot}
-              className="district-btn-primary w-full py-3.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 shadow-sm active:scale-98"
+              className="district-btn-primary w-full py-3.5 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2 active:scale-98"
             >
               {loading ? (
                 <span>Securing Bay {selectedSlot}...</span>
@@ -363,23 +364,23 @@ function BookForm() {
       </div>
 
       {/* Right VIP Pass Summary (2 cols) */}
-      <div className="p-6 sm:p-8 md:col-span-2 bg-[#0E0E10] border-t md:border-t-0 md:border-l border-white/[0.08] flex flex-col justify-between space-y-6">
+      <div className="p-6 sm:p-8 md:col-span-2 bg-panel2 border-t md:border-t-0 md:border-l border-hair flex flex-col justify-between space-y-6">
         <div>
-          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-zinc-300 mb-4">
-            <Sparkles className="w-4 h-4 text-white" />
+          <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-ink2 mb-4">
+            <Sparkles className="w-4 h-4 text-ink" />
             <span>Gate Clearance Summary</span>
           </div>
 
           {/* Reserved Bay Highlight Box */}
-          <div className="p-4 rounded-xl bg-[#141416] border border-white/[0.1] mb-4">
-            <div className="text-[10px] uppercase font-bold text-zinc-400 tracking-wider">
+          <div className="p-4 rounded-sm bg-panel border border-hair2 mb-4">
+            <div className="text-[10px] uppercase font-bold text-ink2 tracking-wider">
               Assigned Parking Bay
             </div>
-            <div className="text-3xl font-black font-mono text-white mt-1">
+            <div className="text-3xl font-semibold font-mono text-ink mt-1">
               BAY {selectedSlot || 'A1'}
             </div>
-            <div className="text-xs text-zinc-400 mt-1 flex items-center gap-1.5">
-              <MapPin className="w-3.5 h-3.5 text-zinc-300" />
+            <div className="text-xs text-ink2 mt-1 flex items-center gap-1.5">
+              <MapPin className="w-3.5 h-3.5 text-ink2" />
               <span>
                 {selectedSlot?.startsWith('B') ? 'Zone B (South Deck)' : 'Zone A (North Deck)'} • Tech Hub Gate 1
               </span>
@@ -387,45 +388,45 @@ function BookForm() {
           </div>
 
           {/* Price Breakdown Card */}
-          <div className="p-4 rounded-xl bg-[#141416] border border-white/[0.08] space-y-3 mb-6">
-            <div className="flex items-center justify-between text-xs text-zinc-400">
+          <div className="p-4 rounded-sm bg-panel border border-hair space-y-3 mb-6">
+            <div className="flex items-center justify-between text-xs text-ink2">
               <span>Rate Card</span>
-              <span className="font-semibold text-white">₹30 / Hour</span>
+              <span className="font-semibold text-ink">₹30 / Hour</span>
             </div>
-            <div className="flex items-center justify-between text-xs text-zinc-400">
+            <div className="flex items-center justify-between text-xs text-ink2">
               <span>Duration</span>
-              <span className="font-semibold text-white">{durationHours} Hours</span>
+              <span className="font-semibold text-ink">{durationHours} Hours</span>
             </div>
-            <div className="flex items-center justify-between text-xs text-zinc-400">
+            <div className="flex items-center justify-between text-xs text-ink2">
               <span>Gate Automation</span>
-              <span className="font-semibold text-emerald-400">Dual ESP32 ANPR</span>
+              <span className="font-semibold text-ok">Dual ESP32 ANPR</span>
             </div>
-            <div className="pt-3 border-t border-white/[0.08] flex items-center justify-between">
-              <span className="text-xs font-bold text-white">Total Due</span>
-              <span className="text-2xl font-black text-white font-mono">
+            <div className="pt-3 border-t border-hair flex items-center justify-between">
+              <span className="text-xs font-bold text-ink">Total Due</span>
+              <span className="text-2xl font-semibold text-ink font-mono">
                 ₹{estimatedFee}.00
               </span>
             </div>
           </div>
 
           {/* District Feature Highlights */}
-          <div className="space-y-3 text-xs text-zinc-400">
+          <div className="space-y-3 text-xs text-ink2">
             <div className="flex items-start gap-2.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-4 h-4 text-ok shrink-0 mt-0.5" />
               <span>
-                <strong className="text-white">Instant Gate Clearance:</strong> Optical camera matches your plate and automatically opens the boom barrier.
+                <strong className="text-ink">Instant Gate Clearance:</strong> Optical camera matches your plate and automatically opens the boom barrier.
               </span>
             </div>
             <div className="flex items-start gap-2.5">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+              <CheckCircle2 className="w-4 h-4 text-ok shrink-0 mt-0.5" />
               <span>
-                <strong className="text-white">Guaranteed Bay Hold:</strong> Bay {selectedSlot || 'selected'} remains strictly reserved for your vehicle.
+                <strong className="text-ink">Guaranteed Bay Hold:</strong> Bay {selectedSlot || 'selected'} remains strictly reserved for your vehicle.
               </span>
             </div>
           </div>
         </div>
 
-        <div className="text-[10px] text-zinc-500 font-mono text-center pt-4 border-t border-white/[0.06]">
+        <div className="text-[10px] text-muted font-mono text-center pt-4 border-t border-hair">
           AutoPark Smart Mobility Hub
         </div>
       </div>
@@ -435,20 +436,20 @@ function BookForm() {
 
 export default function BookPage() {
   return (
-    <div className="min-h-screen bg-districtBg text-white flex flex-col selection:bg-white/20 selection:text-white">
+    <div className="min-h-screen bg-concrete text-ink flex flex-col selection:bg-ink selection:text-panel">
       <Navbar />
 
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 sm:px-6 py-8">
         {/* District App Header */}
         <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
-            <h1 className="text-2xl sm:text-3xl font-black text-white tracking-tight flex items-center gap-2">
+            <h1 className="text-2xl sm:text-3xl font-semibold text-ink tracking-tight flex items-center gap-2">
               Reserve a Parking Bay
             </h1>
           </div>
         </div>
 
-        <Suspense fallback={<div className="p-12 text-center text-zinc-400">Loading bay selector...</div>}>
+        <Suspense fallback={<div className="p-12 text-center text-ink2">Loading bay selector...</div>}>
           <BookForm />
         </Suspense>
       </main>

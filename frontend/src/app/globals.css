@@ -2,141 +2,275 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ------------------------------------------------------------------
+   Facility palette
+   Warm concrete ground, paper panels, ink text, one paint colour
+   lifted from the boom barrier. Hairlines instead of shadows.
+   ------------------------------------------------------------------ */
+:root {
+  --concrete: #ece9e0;
+  --panel: #f9f7f0;
+  --panel-2: #f2efe6;
+  --ink: #33312a;
+  --ink-2: #5a574d;
+  --muted: #706b5b;
+  --line: #d8d1c2;
+  --line-2: #c2baa8;
+  --paint: #eac98a;
+  --paint-2: #c89f55;
+  --fault: #a55643;
+  --ok: #47735c;
+}
+
 @layer base {
-  * {
-    font-family: 'Plus Jakarta Sans', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-  }
-  body {
-    background-color: #09090B;
-    color: #FFFFFF;
-    min-height: 100vh;
+  html {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+  }
+  body {
+    background-color: var(--concrete);
+    color: var(--ink);
+    min-height: 100vh;
+    font-family: 'Public Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    font-feature-settings: 'tnum' 0;
+  }
+  ::selection {
+    background: var(--ink);
+    color: var(--panel);
+  }
+  /* Tidy scrollbars in the telemetry panes */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line-2) transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  *::-webkit-scrollbar-thumb {
+    background: var(--line-2);
+    border-radius: 0;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
   }
 }
 
 @layer components {
-  /* District Signature Card Container (Black & White Outline Design) */
-  .district-card {
-    background: #121214;
-    border: 1px solid rgba(255, 255, 255, 0.09);
-    border-radius: 20px;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.5);
-    position: relative;
-    overflow: hidden;
+  /* ---------- surfaces ---------- */
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--line-2);
+    border-radius: 2px;
   }
 
-  .district-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
+  .card-head {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* small mono kicker: "SESSION", "GATES", "TELEMETRY" */
+  .kicker {
+    font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    font-size: 10px;
+    line-height: 1.2;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .sign-title {
+    font-family: 'Archivo', system-ui, sans-serif;
+    font-weight: 700;
+    font-size: 12px;
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+    color: var(--ink);
+  }
+
+  .mono {
+    font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .rule {
     height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.14), transparent);
-    pointer-events: none;
+    background: var(--line);
   }
 
-  /* District Card Interactive Hover */
+  /* ---------- buttons ---------- */
+  .btn {
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 1.2;
+    padding: 6px 11px;
+    border: 1px solid var(--line-2);
+    border-radius: 2px;
+    background: var(--panel);
+    color: var(--ink);
+    transition: border-color 0.12s ease, background-color 0.12s ease;
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn:hover {
+    border-color: var(--ink);
+  }
+  .btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-solid {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--panel);
+  }
+  .btn-solid:hover {
+    background: #45423a;
+    border-color: #45423a;
+  }
+
+  .btn-quiet {
+    background: transparent;
+    border-color: transparent;
+    color: var(--muted);
+    font-weight: 500;
+    padding: 5px 7px;
+  }
+  .btn-quiet:hover {
+    color: var(--ink);
+    border-color: var(--line-2);
+    background: var(--panel);
+  }
+
+  /* ---------- status pills (values, not badges) ---------- */
+  .pill {
+    display: inline-block;
+    font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    font-size: 9.5px;
+    line-height: 1.5;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    padding: 2px 6px;
+    border: 1px solid var(--line-2);
+    border-radius: 1px;
+    color: var(--ink-2);
+    background: transparent;
+    white-space: nowrap;
+  }
+  .pill-occupied {
+    background: var(--ink);
+    border-color: var(--ink);
+    color: var(--panel);
+  }
+  .pill-reserved {
+    background: var(--paint);
+    border-color: var(--paint-2);
+    color: var(--ink);
+  }
+  .pill-fault {
+    border-color: var(--fault);
+    border-style: dashed;
+    color: var(--fault);
+  }
+  .pill-ok {
+    border-color: var(--ok);
+    color: var(--ok);
+  }
+
+  /* ---------- painted floor bay ---------- */
+  .bay-hatch {
+    background-image: repeating-linear-gradient(
+      135deg,
+      transparent 0 7px,
+      rgba(112, 107, 91, 0.14) 7px 8px
+    );
+  }
+
+  .barrier-stripe {
+    background-image: repeating-linear-gradient(
+      90deg,
+      var(--ink) 0 4px,
+      var(--paint) 4px 8px
+    );
+  }
+
+  /* ---------- legacy District classes, re-pointed at the palette ----------
+     Kept so any markup not yet restyled still renders in-theme. */
+  .district-card {
+    background: var(--panel);
+    border: 1px solid var(--line-2);
+    border-radius: 2px;
+    position: relative;
+  }
+  .district-card::before {
+    content: none;
+  }
   .district-card-interactive {
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    transition: border-color 0.12s ease;
   }
   .district-card-interactive:hover {
-    background: #17171B;
-    border-color: rgba(255, 255, 255, 0.22);
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.7);
-    transform: translateY(-2px);
+    border-color: var(--ink);
   }
-
-  /* District Pure White Solid Button (Like "Book tickets" / "Pay bill" in District) */
   .district-btn-primary {
-    background: #FFFFFF;
-    color: #000000;
-    font-weight: 700;
-    border-radius: 9999px;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.25);
-    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-    position: relative;
-    overflow: hidden;
+    background: var(--ink);
+    color: var(--panel);
+    font-weight: 600;
+    border: 1px solid var(--ink);
+    border-radius: 2px;
+    transition: background-color 0.12s ease;
   }
   .district-btn-primary:hover {
-    background: #E4E4E7;
-    color: #000000;
-    transform: translateY(-1px);
-    box-shadow: 0 4px 16px rgba(255, 255, 255, 0.15);
+    background: #45423a;
   }
-  .district-btn-primary:active {
-    transform: scale(0.97);
-  }
-
-  /* District Secondary Outline Pill Button */
   .district-btn-secondary {
-    background: #18181B;
-    border: 1px solid rgba(255, 255, 255, 0.14);
-    color: #FFFFFF;
-    font-weight: 600;
-    border-radius: 9999px;
-    transition: all 0.2s ease;
+    background: var(--panel);
+    border: 1px solid var(--line-2);
+    color: var(--ink);
+    font-weight: 500;
+    border-radius: 2px;
+    transition: border-color 0.12s ease;
   }
   .district-btn-secondary:hover {
-    background: #27272A;
-    border-color: rgba(255, 255, 255, 0.28);
-    color: #FFFFFF;
+    background: var(--panel);
+    border-color: var(--ink);
+    color: var(--ink);
   }
-
-  /* District Squircle Category Icon Box (Clean Outline Design) */
   .district-squircle {
-    width: 58px;
-    height: 58px;
-    border-radius: 18px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: #16161A;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #FFFFFF;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
-    position: relative;
-    transition: all 0.2s ease;
+    border-radius: 3px;
+    background: var(--panel-2);
+    border: 1px solid var(--line);
+    color: var(--ink);
   }
   .district-squircle:hover {
-    transform: translateY(-2px);
-    background: #1F1F24;
-    border-color: rgba(255, 255, 255, 0.28);
-    box-shadow: 0 6px 18px rgba(0, 0, 0, 0.6);
+    background: var(--panel);
+    border-color: var(--ink);
   }
-
-  /* District Section Divider: "— IN THE MOOD FOR —" style (Monochrome) */
   .district-section-header {
-    display: flex;
-    align-items: center;
-    gap: 16px;
-    font-size: 11px;
-    font-weight: 800;
-    letter-spacing: 0.16em;
+    font-family: 'IBM Plex Mono', ui-monospace, Menlo, monospace;
+    font-size: 10px;
+    font-weight: 500;
+    letter-spacing: 0.13em;
     text-transform: uppercase;
-    color: #71717A;
+    color: var(--muted);
   }
   .district-section-header::before,
   .district-section-header::after {
-    content: '';
-    flex: 1;
-    height: 1px;
-    background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.09), transparent);
+    background: var(--line);
   }
-
-  /* District Pill Search Bar (Clean Monochrome) */
   .district-search-bar {
-    background: #141416;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    border-radius: 9999px;
-    padding: 12px 20px;
-    transition: all 0.2s ease;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    background: var(--panel);
+    border: 1px solid var(--line-2);
+    border-radius: 2px;
+    box-shadow: none;
   }
   .district-search-bar:focus-within {
-    border-color: rgba(255, 255, 255, 0.3);
-    background: #18181C;
-    box-shadow: 0 0 15px rgba(255, 255, 255, 0.08);
+    background: var(--panel);
+    border-color: var(--ink);
+    box-shadow: none;
   }
 }
