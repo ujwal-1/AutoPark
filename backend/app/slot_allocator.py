@@ -347,36 +347,42 @@ def allocate_entry_slot(
             }
 
         if match_result["status"] != "authorized":
-            logger.warning(f"Unauthorized Entry Attempt: Vehicle [{clean_plate}] is not pre-registered.")
-            event = DetectionEvent(
-                camera="ENTRY",
-                vehicle_type=vehicle_type,
-                plate_number=clean_plate,
-                confidence=confidence,
-                processed=True,
-                allocated_slot_number=None,
-                evidence=json.dumps(evidence_data, default=str) if evidence_data else None,
-                diagnostic_info="Unauthorized - No valid pre-check-in found"
-            )
-            db.add(event)
-            db.commit()
-            return {
-                "status": "unauthorized",
-                "message": f"Access Denied: Vehicle [{clean_plate}] is not pre-registered. Please log in on the dashboard and submit a pre-check-in before entering.",
-                "slot": None,
-                "trigger_buzzer": False,
-                "open_barrier": False,
-                "barrier_action": "LOCKED",
-                "confidence": confidence,
-                "plate_number": clean_plate
-            }
+            allow_walkin = getattr(settings, "ALLOW_WALKIN_ENTRY", True)
+            if not allow_walkin:
+                logger.warning(f"Unauthorized Entry Attempt: Vehicle [{clean_plate}] is not pre-registered.")
+                event = DetectionEvent(
+                    camera="ENTRY",
+                    vehicle_type=vehicle_type,
+                    plate_number=clean_plate,
+                    confidence=confidence,
+                    processed=True,
+                    allocated_slot_number=None,
+                    evidence=json.dumps(evidence_data, default=str) if evidence_data else None,
+                    diagnostic_info="Unauthorized - No valid pre-check-in found"
+                )
+                db.add(event)
+                db.commit()
+                return {
+                    "status": "unauthorized",
+                    "message": f"Access Denied: Vehicle [{clean_plate}] is not pre-registered. Please log in on the dashboard and submit a pre-check-in before entering.",
+                    "slot": None,
+                    "trigger_buzzer": False,
+                    "open_barrier": False,
+                    "barrier_action": "LOCKED",
+                    "confidence": confidence,
+                    "plate_number": clean_plate
+                }
 
-        pending_booking = match_result["matched_booking"]
-        confirmed_plate = match_result["confirmed_plate"]
+            logger.info(f"Walk-in entry detected for unreserved vehicle [{clean_plate}]. Assigning first available bay.")
+            pending_booking = None
+            confirmed_plate = clean_plate
+        else:
+            pending_booking = match_result["matched_booking"]
+            confirmed_plate = match_result["confirmed_plate"]
 
         # Check if pending booking already has a pre-allocated or reserved bay
         assigned_slot = None
-        if pending_booking.slot_id:
+        if pending_booking and pending_booking.slot_id:
             preferred_slot = db.query(ParkingSlot).filter(ParkingSlot.id == pending_booking.slot_id).first()
             if preferred_slot and preferred_slot.status in ["AVAILABLE", "ALLOCATED"]:
                 assigned_slot = preferred_slot
@@ -417,31 +423,33 @@ def allocate_entry_slot(
         assigned_slot.status = "ALLOCATED"
         assigned_slot.updated_at = now
 
-        # Update pre-registration to CHECKED_IN
-        pending_booking.status = "CHECKED_IN"
-        pending_booking.slot_id = assigned_slot.id
-        pending_booking.checked_in_at = now
+        # Update pre-registration to CHECKED_IN if applicable
+        if pending_booking:
+            pending_booking.status = "CHECKED_IN"
+            pending_booking.slot_id = assigned_slot.id
+            pending_booking.checked_in_at = now
 
         # Prepare evidence JSON
         evidence_dict = {
             "confirmed_plate": confirmed_plate,
             "detected_candidates": eval_candidates[:5],
-            "confidence": match_result["confidence"],
+            "confidence": match_result.get("confidence", confidence),
             "camera": "ENTRY",
             "timestamp": now.isoformat(),
-            "booking_id": pending_booking.id,
-            "driver_id": pending_booking.user_id,
-            "quality": evidence_data.get("quality") if evidence_data else None
+            "booking_id": pending_booking.id if pending_booking else None,
+            "driver_id": pending_booking.user_id if pending_booking else None,
+            "quality": evidence_data.get("quality") if evidence_data else None,
+            "entry_mode": "PRE_REGISTERED" if pending_booking else "WALK_IN"
         }
         evidence_json = json.dumps(evidence_dict, default=str)
 
         # Create active parking session linked to user, booking, and evidence
         session = ParkingSession(
-            vehicle_type=pending_booking.vehicle_type or vehicle_type,
+            vehicle_type=(pending_booking.vehicle_type if pending_booking else None) or vehicle_type,
             plate_number=confirmed_plate,
             slot_id=assigned_slot.id,
-            user_id=pending_booking.user_id,
-            booking_id=pending_booking.id,
+            user_id=pending_booking.user_id if pending_booking else None,
+            booking_id=pending_booking.id if pending_booking else None,
             entry_time=now,
             status="ACTIVE",
             recognition_evidence=evidence_json
@@ -457,7 +465,7 @@ def allocate_entry_slot(
             processed=True,
             allocated_slot_number=assigned_slot.slot_number,
             evidence=evidence_json,
-            diagnostic_info=f"Authorized pre-checkin for slot {assigned_slot.slot_number}"
+            diagnostic_info=f"Authorized {'pre-checkin' if pending_booking else 'walk-in'} for slot {assigned_slot.slot_number}"
         )
         db.add(event)
 
@@ -468,8 +476,12 @@ def allocate_entry_slot(
         recent_allocated_slots[canon_plate] = assigned_slot.slot_number
         last_allocated_slot = assigned_slot.slot_number
 
-        driver_label = pending_booking.user.full_name or pending_booking.user.username if pending_booking.user else "Driver"
-        logger.info(f"Authorized Entry: Slot {assigned_slot.slot_number} successfully allocated for {driver_label} (Confirmed Plate: {confirmed_plate})")
+        driver_label = (
+            (pending_booking.user.full_name or pending_booking.user.username)
+            if (pending_booking and pending_booking.user)
+            else f"Vehicle {confirmed_plate}"
+        )
+        logger.info(f"Authorized Entry: Slot {assigned_slot.slot_number} successfully allocated for {driver_label} (Plate: {confirmed_plate})")
 
         return {
             "status": "allocated",
@@ -480,8 +492,8 @@ def allocate_entry_slot(
             "barrier_action": "OPEN",
             "confidence": confidence,
             "plate_number": confirmed_plate,
-            "user_id": pending_booking.user_id,
-            "booking_id": pending_booking.id,
+            "user_id": pending_booking.user_id if pending_booking else None,
+            "booking_id": pending_booking.id if pending_booking else None,
             "driver_name": driver_label
         }
 

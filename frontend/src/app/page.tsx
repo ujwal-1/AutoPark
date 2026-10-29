@@ -40,6 +40,20 @@ export default function HomePage() {
   const [selectedZone, setSelectedZone] = useState<'ALL' | 'A' | 'B'>('ALL');
   const [wsConnected, setWsConnected] = useState<boolean>(false);
   const [loading, setLoading] = useState<boolean>(true);
+  const [latestAllocation, setLatestAllocation] = useState<{
+    slot: string;
+    plate: string;
+    vehicle?: string;
+    time: string;
+  } | null>(null);
+
+  useEffect(() => {
+    if (!latestAllocation) return;
+    const timer = setTimeout(() => {
+      setLatestAllocation(null);
+    }, 30000); // Highlight lasts for 30s so driver has ample time to see it
+    return () => clearTimeout(timer);
+  }, [latestAllocation]);
 
   useEffect(() => {
     const fetchSummary = async () => {
@@ -79,6 +93,15 @@ export default function HomePage() {
           msg.type === 'barrier.exit'
         ) {
           fetchSummary();
+        }
+
+        if (msg.type === 'slot.allocated' && msg.data?.slot) {
+          setLatestAllocation({
+            slot: msg.data.slot,
+            plate: msg.data.plate_number || 'Vehicle',
+            vehicle: msg.data.vehicle,
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          });
         }
       } catch {}
     };
@@ -212,6 +235,48 @@ export default function HomePage() {
 
         {/* Smart Parking Bays Section */}
         <section className="space-y-4">
+          {/* Live Gate Allocation Callout Banner */}
+          {latestAllocation && (
+            <div className="card p-4 border-2 border-ok bg-ok/5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-sm transition-all animate-in fade-in duration-200">
+              <div className="flex items-center gap-3.5">
+                <div className="w-12 h-12 rounded-sm bg-ok text-paper font-black text-lg flex items-center justify-center shrink-0 shadow-sm">
+                  {latestAllocation.slot}
+                </div>
+                <div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-ok animate-ping" />
+                    <span className="text-[11px] font-mono font-bold uppercase tracking-wider text-ok">
+                      Gate Entry Detected • Bay Assigned Now
+                    </span>
+                    <span className="text-[10px] text-ink2 font-mono">{latestAllocation.time}</span>
+                  </div>
+                  <div className="text-sm font-bold text-ink mt-0.5">
+                    Vehicle <span className="font-mono bg-panel px-1.5 py-0.5 rounded border border-hair font-bold">{latestAllocation.plate}</span> is assigned to <span className="text-ok font-extrabold underline decoration-ok underline-offset-4">Bay {latestAllocation.slot}</span>
+                  </div>
+                  <p className="text-xs text-ink2 mt-0.5">
+                    Boom barrier opened. Please proceed inside and park at <strong>Bay {latestAllocation.slot}</strong>.
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                <Link
+                  href="/pass"
+                  className="district-btn-primary px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
+                >
+                  <QrCode className="w-3.5 h-3.5" />
+                  <span>Gate Pass</span>
+                </Link>
+                <button
+                  onClick={() => setLatestAllocation(null)}
+                  className="p-1.5 text-muted hover:text-ink text-xs transition-colors"
+                  title="Dismiss banner"
+                >
+                  ✕
+                </button>
+              </div>
+            </div>
+          )}
+
           <div className="flex items-center justify-between">
             <h2 className="text-base font-bold text-ink tracking-tight">
               Available Parking Bays
@@ -248,36 +313,52 @@ export default function HomePage() {
             ) : (
               filteredSlots.map((slot) => {
                 const isVacant = slot.status === 'AVAILABLE';
-                const isOccupied = slot.status === 'OCCUPIED';
+                const isOccupied = slot.status === 'OCCUPIED' || (slot.status === 'ALLOCATED' && !!slot.active_session);
+                const isJustAssigned = latestAllocation?.slot === slot.slot_number;
                 const zone = slot.slot_number.startsWith('A') ? 'Zone A (North Deck)' : 'Zone B (South Deck)';
 
                 return (
                   <div
                     key={slot.id}
-                    className="district-card district-card-interactive p-5 flex flex-col justify-between group bg-panel border border-hair"
+                    className={`district-card district-card-interactive p-5 flex flex-col justify-between group bg-panel border transition-all ${
+                      isJustAssigned
+                        ? 'border-ok ring-2 ring-ok/30 shadow-md'
+                        : 'border-hair'
+                    }`}
                   >
                     {/* Top Bay Badge & Status */}
                     <div className="flex items-center justify-between pb-3 border-b border-hair">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-8 h-8 rounded-full bg-panel2 border border-hair flex items-center justify-center font-mono font-semibold text-ink text-sm">
+                        <div className={`w-8 h-8 rounded-full border flex items-center justify-center font-mono font-semibold text-sm ${
+                          isJustAssigned ? 'bg-ok text-paper border-ok' : 'bg-panel2 border-hair text-ink'
+                        }`}>
                           {slot.slot_number}
                         </div>
                         <div>
-                          <div className="text-xs font-bold text-ink">Bay {slot.slot_number}</div>
+                          <div className="text-xs font-bold text-ink flex items-center gap-1.5">
+                            <span>Bay {slot.slot_number}</span>
+                            {isJustAssigned && (
+                              <span className="px-1.5 py-0.2 rounded text-[9px] font-mono font-bold bg-ok text-paper animate-pulse">
+                                PARK HERE
+                              </span>
+                            )}
+                          </div>
                           <div className="text-[10px] text-ink2">{zone}</div>
                         </div>
                       </div>
 
                       <span
                         className={`text-[10px] font-bold uppercase px-2.5 py-0.5 rounded-sm border tracking-wider ${
-                          isVacant
+                          isJustAssigned
+                            ? 'bg-ok text-paper border-ok'
+                            : isVacant
                             ? 'bg-ok/10 text-ok border-ok/50'
                             : isOccupied
                             ? 'bg-ink text-panel border-ink'
                             : 'bg-paint/50 text-[#8A6A1E] border-paintDeep'
                         }`}
                       >
-                        {isVacant ? '● Vacant' : isOccupied ? 'Occupied' : 'Reserved'}
+                        {isJustAssigned ? '● Assigned Now' : isVacant ? '● Vacant' : isOccupied ? 'Occupied' : 'Reserved'}
                       </span>
                     </div>
 

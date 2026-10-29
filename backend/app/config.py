@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     
     # Hardware/Camera settings
     CAMERA_OFFLINE_TIMEOUT_SECONDS: int = 30
+
+    # Entry policy: Allow walk-in vehicles (auto-assign available bay) or require pre-booking
+    ALLOW_WALKIN_ENTRY: bool = True
     
     # JWT & Auth
     # Set JWT_SECRET in .env for anything beyond local development. The fallback
