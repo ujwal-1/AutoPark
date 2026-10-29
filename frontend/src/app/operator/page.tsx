@@ -11,6 +11,7 @@ import { ExitReceiptModal } from '../../components/ExitReceiptModal';
 import { SessionsTable } from '../../components/SessionsTable';
 import { LastReceiptPanel } from '../../components/LastReceiptPanel';
 import { TelemetryPanel } from '../../components/TelemetryPanel';
+import { GatesPanel } from '../../components/GatesPanel';
 import {
   ParkingSlotData,
   ActivityEvent,
@@ -368,8 +369,8 @@ export default function OperatorPage() {
           } else if (type === 'booking.created' || type === 'booking.cancelled') {
             fetchParkingState();
           }
-        } catch (err) {
-          console.error('WS Parse error:', err);
+        } catch (_err) {
+          // silently ignore malformed WS frames
         }
       };
 
@@ -461,8 +462,8 @@ export default function OperatorPage() {
     }
   };
 
-  const goToGates = () => {
-    document.getElementById('gates')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const goToCameras = () => {
+    document.getElementById('camera-feeds')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
 
   return (
@@ -505,7 +506,7 @@ export default function OperatorPage() {
         {unauthorizedWarning && (
           <NotificationBanner
             label="Attention"
-            onReview={goToGates}
+            onReview={goToCameras}
             onDismiss={() => setUnauthorizedWarning(null)}
           >
             <b className="font-semibold">Entry refused</b> —{' '}
@@ -540,11 +541,8 @@ export default function OperatorPage() {
         <div className="mt-4 grid grid-cols-1 lg:grid-cols-[minmax(0,1.62fr)_minmax(0,1fr)] gap-4 items-start">
           <div className="grid gap-4 min-w-0">
             <SessionsTable slots={slots} onRelease={handleManualRelease} />
-            <LiveActivityLog events={events} />
-          </div>
 
-          <div className="grid gap-4 min-w-0">
-            <div id="gates" className="scroll-mt-16">
+            <div id="camera-feeds" className="scroll-mt-16">
               <LiveCameraFeed
                 entryDetection={entryDetection}
                 exitDetection={exitDetection}
@@ -557,6 +555,18 @@ export default function OperatorPage() {
                 }}
               />
             </div>
+
+            <LiveActivityLog events={events} />
+          </div>
+
+          <div className="grid gap-4 min-w-0">
+            <GatesPanel
+              entryDetection={entryDetection}
+              exitDetection={exitDetection}
+              entryBarrierOpen={entryDetection.status === 'ALLOCATED'}
+              exitBarrierOpen={exitDetection.status === 'RELEASED'}
+              onInspect={goToCameras}
+            />
 
             <LastReceiptPanel
               receipt={lastReceipt}

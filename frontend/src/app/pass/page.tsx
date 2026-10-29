@@ -174,7 +174,7 @@ export default function PassPage() {
     };
 
     return () => ws.close();
-  }, [token, statusData?.active_session, elapsedSeconds]);
+  }, [token, statusData?.active_session?.id]);
 
   useEffect(() => {
     if (!statusData?.active_session?.entry_time) {
@@ -559,7 +559,7 @@ export default function PassPage() {
         ) : (
           /* STATE 3: NO ACTIVE BOOKING OR PASS (Monochrome) */
           <div className="flex-1 flex flex-col items-center justify-center py-16 text-center max-w-lg mx-auto">
-            <div className="district-squircle w-16 h-16 rounded-sm bg-panel border-hair text-ink mb-6">
+            <div className="district-squircle w-16 h-16 rounded-sm bg-panel border-hair text-ink mb-6 flex items-center justify-center">
               <Car className="w-8 h-8 text-ink" />
             </div>
             <h2 className="text-xl font-bold text-ink mb-2">No Active Parking Pass</h2>

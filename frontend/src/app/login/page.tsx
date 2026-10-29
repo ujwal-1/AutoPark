@@ -36,9 +36,15 @@ export default function LoginPage() {
       const data = await res.json();
       if (typeof window !== 'undefined') {
         localStorage.setItem('autopark_token', data.access_token);
-        localStorage.setItem('autopark_username', data.username);
-        localStorage.setItem('autopark_role', data.role || 'DRIVER');
-        localStorage.setItem('autopark_plate', data.license_plate || '');
+        // Store as autopark_user JSON object so Navbar & book page can read it
+        localStorage.setItem('autopark_user', JSON.stringify({
+          id: data.id,
+          username: data.username,
+          role: data.role || 'DRIVER',
+          vehicle_plate: data.license_plate || '',
+          full_name: data.full_name || null,
+          email: data.email || null,
+        }));
       }
 
       router.push('/book');

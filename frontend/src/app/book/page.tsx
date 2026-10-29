@@ -170,7 +170,8 @@ function BookForm() {
     }
   };
 
-  const estimatedFee = durationHours * 30;
+  // Correct rate: ₹30 flat first hour + ₹20/hr for each additional hour
+  const estimatedFee = durationHours === 1 ? 30 : 30 + (durationHours - 1) * 20;
 
   // Fallback bays list if layout API hasn't loaded yet
   const displayBays = bays.length > 0 ? bays : [
@@ -331,7 +332,7 @@ function BookForm() {
                 step="1"
                 value={durationHours}
                 onChange={(e) => setDurationHours(Number(e.target.value))}
-                className="w-full accent-white cursor-pointer"
+                className="w-full accent-ink cursor-pointer"
               />
               <div className="flex justify-between text-[10px] text-ink2 font-mono mt-1">
                 <span>1h</span>

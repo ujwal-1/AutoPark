@@ -91,9 +91,9 @@ export const Navbar: React.FC<NavbarProps> = ({ wsConnected = true }) => {
                 <Link
                   key={link.href}
                   href={link.href}
-                  className={`whitespace-nowrap transition-colors ${
+                  className={`relative py-1 whitespace-nowrap transition-colors ${
                     isActive
-                      ? 'text-[#F7F4EC] border-b-2 border-paint pb-[15px] -mb-[15px]'
+                      ? 'text-[#F7F4EC] after:absolute after:left-0 after:right-0 after:-bottom-[15px] after:h-[2px] after:bg-paint'
                       : 'text-[#CCC6B7] hover:text-[#F7F4EC]'
                   }`}
                 >

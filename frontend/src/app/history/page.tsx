@@ -207,7 +207,7 @@ export default function HistoryPage() {
           </div>
         ) : sessions.length === 0 ? (
           <div className="flex-1 flex flex-col items-center justify-center py-16 text-center max-w-md mx-auto">
-            <div className="district-squircle w-16 h-16 rounded-sm mb-6">
+            <div className="district-squircle w-16 h-16 rounded-sm mb-6 flex items-center justify-center">
               <History className="w-8 h-8 text-ink" />
             </div>
             <h2 className="text-xl font-bold text-ink mb-2">No Past Parking Records</h2>

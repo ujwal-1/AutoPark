@@ -98,8 +98,8 @@ export const UserPreCheckinPanel: React.FC<UserPreCheckinPanelProps> = ({
       if (res.ok) {
         onCheckinSuccess();
       }
-    } catch (err) {
-      console.error('Cancel booking error:', err);
+    } catch (_err) {
+      // silently handled — booking state will be stale until next refresh
     } finally {
       setCancelling(false);
     }
@@ -108,18 +108,21 @@ export const UserPreCheckinPanel: React.FC<UserPreCheckinPanelProps> = ({
   // Not logged in view
   if (!currentUser) {
     return (
-      <div className="bg-[#333545] border border-amber-500/40 rounded-2xl p-5 mb-6 shadow-xl relative overflow-hidden">
+      <div className="card p-5 mb-6 border border-hair">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-start gap-3.5">
-            <div className="p-2.5 rounded-xl bg-amber-500/20 text-amber-400 shrink-0 mt-0.5">
+            <div className="p-2.5 rounded-sm bg-paint/20 border border-paintDeep/40 text-paintDeep shrink-0 mt-0.5">
               <ShieldCheck className="w-6 h-6" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-white flex items-center gap-2">
+              <h2 className="text-base font-bold text-ink flex items-center gap-2">
                 Pre-Entry Driver Authentication Required
               </h2>
-              <p className="text-xs text-gray-300 mt-1 max-w-2xl leading-relaxed">
-                Our camera gate operates on a <strong className="text-white">Pre-Check-In system</strong>. Drivers must log in and register their license plate on this dashboard <strong className="text-amber-300">before</strong> arriving at the entry barrier. Unregistered vehicles will be denied entry.
+              <p className="text-xs text-ink2 mt-1 max-w-2xl leading-relaxed">
+                Our camera gate operates on a <strong className="text-ink">Pre-Check-In system</strong>. Drivers must log in
+                and register their license plate on this dashboard{' '}
+                <strong className="text-paintDeep">before</strong> arriving at the entry barrier.
+                Unregistered vehicles will be denied entry.
               </p>
             </div>
           </div>
@@ -127,16 +130,16 @@ export const UserPreCheckinPanel: React.FC<UserPreCheckinPanelProps> = ({
           <div className="flex items-center gap-2 shrink-0">
             <Link
               href="/login"
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-[#F84464] hover:bg-[#e03a58] text-white shadow-lg shadow-[#F84464]/25 transition-all flex items-center gap-1.5"
+              className="district-btn-primary px-4 py-2 text-xs font-bold flex items-center gap-1.5"
             >
               <LogIn className="w-3.5 h-3.5" />
               <span>Sign In to Check-In</span>
             </Link>
             <Link
               href="/register"
-              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-[#222531] hover:bg-gray-700/60 text-gray-200 border border-gray-600 transition-all"
+              className="district-btn-secondary px-3.5 py-2 text-xs font-bold flex items-center"
             >
-              <span>Register</span>
+              Register
             </Link>
           </div>
         </div>
@@ -148,78 +151,79 @@ export const UserPreCheckinPanel: React.FC<UserPreCheckinPanelProps> = ({
   const activeSession = myStatus?.active_session;
 
   return (
-    <div className="bg-[#333545] border border-gray-700/60 rounded-2xl p-5 mb-6 shadow-xl">
-      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-gray-700/60">
+    <div className="card mb-6 border border-hair">
+      {/* Card Header */}
+      <div className="card-head flex-col lg:flex-row lg:items-center gap-4">
         <div className="flex items-center gap-3">
-          <div className="p-2.5 bg-[#F84464]/20 border border-[#F84464]/40 text-[#F84464] rounded-xl">
+          <div className="p-2 bg-panel2 border border-hair text-ink rounded-sm">
             <Car className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-white flex items-center gap-2">
+            <h2 className="text-sm font-bold text-ink flex items-center gap-2">
               Vehicle Pre-Check-In Portal
-              <span className="text-[10px] px-2 py-0.5 rounded font-extrabold uppercase tracking-wider bg-[#2DC492]/20 text-[#2DC492] border border-[#2DC492]/30">
-                ACTIVE DRIVER
+              <span className="text-[10px] px-2 py-0.5 rounded-sm font-bold uppercase tracking-wider bg-ok/10 text-ok border border-ok/30">
+                Active Driver
               </span>
             </h2>
-            <p className="text-xs text-gray-300">
-              Welcome back, <span className="text-white font-semibold">{currentUser.full_name || currentUser.username}</span>. Register your vehicle before approaching the camera gate.
+            <p className="text-xs text-ink2 mt-0.5">
+              Welcome back,{' '}
+              <span className="text-ink font-semibold">{currentUser.full_name || currentUser.username}</span>.
+              Register your vehicle before approaching the camera gate.
             </p>
           </div>
         </div>
 
         <button
           onClick={() => setShowHistory(!showHistory)}
-          className="text-xs font-bold px-3 py-1.5 rounded-lg bg-[#222531] border border-gray-600/70 text-gray-300 hover:text-white hover:border-gray-500 transition-all flex items-center gap-1.5 self-start lg:self-auto"
+          className="btn text-xs flex items-center gap-1.5 self-start lg:self-auto ml-auto"
         >
-          <History className="w-3.5 h-3.5 text-[#F84464]" />
+          <History className="w-3.5 h-3.5 text-paintDeep" />
           <span>{showHistory ? 'Hide History' : 'My Parking History'}</span>
         </button>
       </div>
 
       {/* Status Alerts */}
       {error && (
-        <div className="mt-4 p-3 rounded-xl bg-rose-500/15 border border-rose-500/40 text-rose-300 text-xs font-medium flex items-center gap-2">
-          <XCircle className="w-4 h-4 text-rose-400 shrink-0" />
+        <div className="mx-4 mt-4 p-3 rounded-sm bg-fault/10 border border-fault text-fault text-xs font-medium flex items-center gap-2">
+          <XCircle className="w-4 h-4 shrink-0" />
           <span>{error}</span>
         </div>
       )}
 
       {successMsg && (
-        <div className="mt-4 p-3 rounded-xl bg-[#2DC492]/15 border border-[#2DC492]/40 text-[#2DC492] text-xs font-medium flex items-center gap-2">
+        <div className="mx-4 mt-4 p-3 rounded-sm bg-ok/10 border border-ok/40 text-ok text-xs font-medium flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 shrink-0" />
           <span>{successMsg}</span>
         </div>
       )}
 
-      {/* Main Content Grid: Live Status + Pre-Check-in Form */}
-      <div className="mt-5 grid grid-cols-1 lg:grid-cols-12 gap-5">
-        {/* Left: Current Active Clearance Card */}
-        <div className="lg:col-span-5 flex flex-col justify-between p-4 rounded-xl bg-[#222531] border border-gray-700/60">
+      {/* Main Content Grid */}
+      <div className="p-4 grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Left: Current Active Clearance */}
+        <div className="lg:col-span-5 flex flex-col justify-between p-4 rounded-sm bg-panel2 border border-hair">
           <div>
-            <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400">
-              Current Clearance Status
-            </span>
+            <span className="kicker">Current Clearance Status</span>
 
             {activeSession ? (
               <div className="mt-3">
-                <div className="flex items-center gap-2 text-emerald-400 font-bold text-sm">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse" />
+                <div className="flex items-center gap-2 text-ok font-bold text-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-ok animate-pulse" />
                   <span>Vehicle Actively Parked</span>
                 </div>
-                <div className="mt-3 bg-[#333545] p-3 rounded-xl border border-emerald-500/30">
-                  <div className="flex items-center justify-between text-xs text-gray-300 mb-1.5">
+                <div className="mt-3 bg-panel border border-ok/30 p-3 rounded-sm">
+                  <div className="flex items-center justify-between text-xs text-ink2 mb-1.5">
                     <span>Assigned Slot:</span>
-                    <span className="font-black text-lg text-emerald-400">
+                    <span className="font-black text-lg text-ok font-mono">
                       {activeSession.slot_number || 'N/A'}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-gray-300 mb-1">
+                  <div className="flex items-center justify-between text-xs text-ink2 mb-1">
                     <span>License Plate:</span>
-                    <span className="font-mono font-bold text-white bg-black/40 px-2 py-0.5 rounded">
+                    <span className="font-mono font-bold text-ink bg-panel2 px-2 py-0.5 rounded-sm border border-hair">
                       {activeSession.plate_number || 'N/A'}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-gray-400 mt-2 pt-2 border-t border-gray-700">
+                  <div className="flex items-center justify-between text-xs text-muted mt-2 pt-2 border-t border-hair">
                     <span>Entry Time:</span>
                     <span>{activeSession.entry_time ? new Date(activeSession.entry_time).toLocaleTimeString() : 'Recent'}</span>
                   </div>
@@ -227,28 +231,30 @@ export const UserPreCheckinPanel: React.FC<UserPreCheckinPanelProps> = ({
               </div>
             ) : activeBooking ? (
               <div className="mt-3">
-                <div className="flex items-center gap-2 text-[#2DC492] font-bold text-sm">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#2DC492] animate-ping" />
+                <div className="flex items-center gap-2 text-ok font-bold text-sm">
+                  <span className="w-2.5 h-2.5 rounded-full bg-ok animate-ping" />
                   <span>Pre-Cleared: Drive to Entry Gate!</span>
                 </div>
-                <div className="mt-3 bg-[#333545] p-3 rounded-xl border border-[#2DC492]/40 shadow-inner">
-                  <div className="flex items-center justify-between text-xs text-gray-300 mb-1.5">
+                <div className="mt-3 bg-panel border border-ok/30 p-3 rounded-sm">
+                  <div className="flex items-center justify-between text-xs text-ink2 mb-1.5">
                     <span>Authorized Plate:</span>
-                    <span className="font-mono font-bold text-base text-white bg-black/50 px-2 py-0.5 rounded border border-[#2DC492]/40">
+                    <span className="font-mono font-bold text-sm text-ink bg-panel2 px-2 py-0.5 rounded-sm border border-hair">
                       {activeBooking.plate_number}
                     </span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-gray-300 mb-1">
+                  <div className="flex items-center justify-between text-xs text-ink2 mb-1">
                     <span>Vehicle:</span>
-                    <span className="font-semibold text-gray-200 capitalize">{activeBooking.vehicle_type}</span>
+                    <span className="font-semibold text-ink capitalize">{activeBooking.vehicle_type}</span>
                   </div>
-                  <div className="flex items-center justify-between text-xs text-amber-300 mt-2 pt-2 border-t border-gray-700">
+                  <div className="flex items-center justify-between text-xs text-paintDeep mt-2 pt-2 border-t border-hair">
                     <span className="flex items-center gap-1">
                       <Clock className="w-3 h-3" />
                       <span>Valid until:</span>
                     </span>
                     <span>
-                      {activeBooking.expires_at ? new Date(activeBooking.expires_at).toLocaleTimeString() : '2 hours'}
+                      {activeBooking.expires_at
+                        ? new Date(activeBooking.expires_at).toLocaleTimeString()
+                        : '2 hours'}
                     </span>
                   </div>
                 </div>
@@ -256,7 +262,7 @@ export const UserPreCheckinPanel: React.FC<UserPreCheckinPanelProps> = ({
                 <button
                   onClick={() => handleCancelBooking(activeBooking.id)}
                   disabled={cancelling}
-                  className="mt-3 text-xs text-gray-400 hover:text-rose-400 flex items-center gap-1 font-semibold transition-colors disabled:opacity-50"
+                  className="mt-3 text-xs text-ink2 hover:text-fault flex items-center gap-1 font-semibold transition-colors disabled:opacity-50"
                 >
                   <XCircle className="w-3.5 h-3.5" />
                   <span>{cancelling ? 'Cancelling...' : 'Cancel Pre-Check-In'}</span>
@@ -264,35 +270,33 @@ export const UserPreCheckinPanel: React.FC<UserPreCheckinPanelProps> = ({
               </div>
             ) : (
               <div className="mt-3 py-4 text-center">
-                <div className="inline-flex p-3 rounded-full bg-gray-700/40 text-gray-400 mb-2">
+                <div className="inline-flex p-3 rounded-sm bg-panel border border-hair text-muted mb-2">
                   <Car className="w-6 h-6" />
                 </div>
-                <p className="text-xs text-gray-300 font-medium">
-                  No vehicle currently pre-registered.
-                </p>
-                <p className="text-[11px] text-gray-400 mt-1">
+                <p className="text-xs text-ink2 font-medium">No vehicle currently pre-registered.</p>
+                <p className="text-xs text-muted mt-1">
                   Fill out the form to obtain entry gate clearance before arrival.
                 </p>
               </div>
             )}
           </div>
 
-          <div className="mt-4 pt-3 border-t border-gray-700/60 text-[11px] text-gray-400 flex items-center gap-1.5">
-            <Sparkles className="w-3.5 h-3.5 text-amber-400 shrink-0" />
-            <span>YOLOv11 & EasyOCR will automatically open the gate for pre-registered plates.</span>
+          <div className="mt-4 pt-3 border-t border-hair text-xs text-muted flex items-center gap-1.5">
+            <Sparkles className="w-3.5 h-3.5 text-paintDeep shrink-0" />
+            <span>YOLOv11 &amp; EasyOCR will automatically open the gate for pre-registered plates.</span>
           </div>
         </div>
 
         {/* Right: Pre-Check-in Submission Form */}
-        <div className="lg:col-span-7 p-4 rounded-xl bg-[#222531] border border-gray-700/60">
-          <span className="text-[10px] font-extrabold uppercase tracking-wider text-gray-400 block mb-3">
+        <div className="lg:col-span-7 p-4 rounded-sm bg-panel2 border border-hair">
+          <span className="kicker block mb-3">
             {activeBooking ? 'Update Pre-Check-In Vehicle' : 'New Pre-Check-In Submission'}
           </span>
 
           <form onSubmit={handlePreCheckin} className="space-y-3">
             <div>
-              <label className="block text-xs font-bold text-gray-300 mb-1">
-                License Plate Number <span className="text-[#F84464]">*</span>
+              <label className="block text-xs font-bold text-ink2 uppercase tracking-wider mb-1">
+                License Plate Number <span className="text-fault">*</span>
               </label>
               <div className="flex gap-2">
                 <input
@@ -301,28 +305,28 @@ export const UserPreCheckinPanel: React.FC<UserPreCheckinPanelProps> = ({
                   value={plateNumber}
                   onChange={(e) => setPlateNumber(e.target.value.toUpperCase())}
                   placeholder="e.g. KA05KK0403 or MH12AB1234"
-                  className="flex-1 px-3.5 py-2 rounded-xl bg-[#333545] border border-gray-700 text-sm font-mono font-bold text-white uppercase placeholder-gray-500 focus:outline-none focus:border-[#F84464] transition-colors"
+                  className="flex-1 px-3.5 py-2 rounded-sm bg-panel border border-hair text-sm font-mono font-bold text-ink uppercase placeholder-muted focus:outline-none focus:border-ink transition-colors"
                 />
                 <button
                   type="button"
                   onClick={() => setPlateNumber('KA05KK0403')}
-                  className="px-2.5 py-1 text-[11px] font-bold rounded-lg bg-gray-700 hover:bg-gray-600 text-gray-200 transition-colors"
+                  className="btn text-xs px-2.5"
                   title="Quick fill sample demo vehicle plate"
                 >
-                  Demo Plate
+                  Demo
                 </button>
               </div>
             </div>
 
             <div className="grid grid-cols-2 gap-3">
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">
+                <label className="block text-xs font-bold text-ink2 uppercase tracking-wider mb-1">
                   Vehicle Type
                 </label>
                 <select
                   value={vehicleType}
                   onChange={(e) => setVehicleType(e.target.value)}
-                  className="w-full px-3 py-2 rounded-xl bg-[#333545] border border-gray-700 text-xs font-semibold text-white focus:outline-none focus:border-[#F84464] transition-colors"
+                  className="w-full px-3 py-2 rounded-sm bg-panel border border-hair text-xs font-semibold text-ink focus:outline-none focus:border-ink transition-colors"
                 >
                   <option value="Car">Car</option>
                   <option value="SUV">SUV</option>
@@ -333,13 +337,13 @@ export const UserPreCheckinPanel: React.FC<UserPreCheckinPanelProps> = ({
               </div>
 
               <div>
-                <label className="block text-xs font-bold text-gray-300 mb-1">
+                <label className="block text-xs font-bold text-ink2 uppercase tracking-wider mb-1">
                   Arrival Window
                 </label>
                 <select
                   value={durationHours}
                   onChange={(e) => setDurationHours(Number(e.target.value))}
-                  className="w-full px-3 py-2 rounded-xl bg-[#333545] border border-gray-700 text-xs font-semibold text-white focus:outline-none focus:border-[#F84464] transition-colors"
+                  className="w-full px-3 py-2 rounded-sm bg-panel border border-hair text-xs font-semibold text-ink focus:outline-none focus:border-ink transition-colors"
                 >
                   <option value={1}>1 hour</option>
                   <option value={2}>2 hours (Standard)</option>
@@ -352,7 +356,7 @@ export const UserPreCheckinPanel: React.FC<UserPreCheckinPanelProps> = ({
             <button
               type="submit"
               disabled={loading || !plateNumber.trim()}
-              className="w-full mt-2 py-2.5 px-4 rounded-xl font-bold text-xs bg-[#F84464] hover:bg-[#e03a58] active:scale-[0.99] text-white shadow-md shadow-[#F84464]/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+              className="district-btn-primary w-full mt-2 py-2.5 px-4 font-bold text-xs flex items-center justify-center gap-2 disabled:opacity-50"
             >
               {loading ? (
                 <span>Registering Clearance...</span>
@@ -369,52 +373,48 @@ export const UserPreCheckinPanel: React.FC<UserPreCheckinPanelProps> = ({
 
       {/* History Drawer */}
       {showHistory && (
-        <div className="mt-5 pt-4 border-t border-gray-700/60">
+        <div className="mx-4 mb-4 pt-4 border-t border-hair">
           <div className="flex items-center justify-between mb-3">
-            <h3 className="text-xs font-bold text-gray-300 flex items-center gap-1.5 uppercase tracking-wider">
-              <History className="w-3.5 h-3.5 text-[#F84464]" />
+            <h3 className="text-xs font-bold text-ink flex items-center gap-1.5 uppercase tracking-wider">
+              <History className="w-3.5 h-3.5 text-paintDeep" />
               <span>Your Parking History (Last 20 Sessions)</span>
             </h3>
-            <span className="text-[10px] text-gray-400 font-semibold">{history.length} records found</span>
+            <span className="text-xs text-muted font-semibold">{history.length} records found</span>
           </div>
 
           {history.length === 0 ? (
-            <p className="text-xs text-gray-400 py-3 text-center">
+            <p className="text-xs text-muted py-3 text-center">
               No historical parking sessions found for this account.
             </p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-gray-300">
-                <thead className="text-[10px] uppercase font-bold text-gray-400 border-b border-gray-700">
+              <table className="data-table">
+                <thead>
                   <tr>
-                    <th className="py-2 px-2">Plate</th>
-                    <th className="py-2 px-2">Vehicle</th>
-                    <th className="py-2 px-2">Slot</th>
-                    <th className="py-2 px-2">Entry Time</th>
-                    <th className="py-2 px-2">Exit Time</th>
-                    <th className="py-2 px-2">Status</th>
+                    <th>Plate</th>
+                    <th>Vehicle</th>
+                    <th>Slot</th>
+                    <th>Entry Time</th>
+                    <th>Exit Time</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-gray-700/40 font-medium">
+                <tbody>
                   {history.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-700/20">
-                      <td className="py-2 px-2 font-mono font-bold text-white">
-                        {item.plate_number || 'N/A'}
-                      </td>
-                      <td className="py-2 px-2 capitalize">{item.vehicle_type}</td>
-                      <td className="py-2 px-2 font-bold text-emerald-400">{item.slot_number || 'N/A'}</td>
-                      <td className="py-2 px-2 text-gray-400">
+                    <tr key={item.id} className="hover:bg-panel2 transition-colors">
+                      <td className="font-mono font-bold text-ink">{item.plate_number || 'N/A'}</td>
+                      <td className="capitalize text-ink2">{item.vehicle_type}</td>
+                      <td className="font-bold text-ok">{item.slot_number || 'N/A'}</td>
+                      <td className="text-ink2">
                         {item.entry_time ? new Date(item.entry_time).toLocaleString() : 'N/A'}
                       </td>
-                      <td className="py-2 px-2 text-gray-400">
+                      <td className="text-ink2">
                         {item.exit_time ? new Date(item.exit_time).toLocaleString() : 'In Progress'}
                       </td>
-                      <td className="py-2 px-2">
+                      <td>
                         <span
-                          className={`text-[10px] px-2 py-0.5 rounded font-extrabold uppercase ${
-                            item.status === 'COMPLETED'
-                              ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30'
-                              : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                          className={`pill ${
+                            item.status === 'COMPLETED' ? 'pill-ok' : 'pill-reserved'
                           }`}
                         >
                           {item.status}

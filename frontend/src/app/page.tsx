@@ -55,8 +55,7 @@ export default function HomePage() {
           setSummary(sumData);
           setSlots(slotData);
         }
-      } catch (e) {
-        console.error('Failed to fetch summary:', e);
+      } catch (_e) {
       } finally {
         setLoading(false);
       }
