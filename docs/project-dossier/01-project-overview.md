@@ -23,15 +23,15 @@ Short form: **AutoPark — ANPR-gated smart parking**
 > sensing with **two camera nodes at the entry and exit gates**. Each node captures a
 > frame every five seconds, transmits it to a FastAPI backend, and the backend locates
 > the licence plate with a YOLOv11 detector and reads it with EasyOCR using four
-> preprocessing variants and multi-frame voting. A plate is only accepted when it
-> matches exactly one pre-registration; ambiguous or unknown plates are refused and
-> the barrier remains closed. On a valid match the allocated bay is bound to the
-> session, an SG90 servo lifts the boom barrier to 90° for five seconds, and all
-> connected clients are updated over WebSocket. Exit is handled symmetrically: the
-> plate is matched against active sessions, the bay is released, and an itemised
-> receipt is produced. Because occupancy is derived from entry and exit events rather
-> than measured per bay, the system's hardware cost is constant with respect to lot
-> size. The implementation comprises a six-bay facility, a real-time Next.js
+> preprocessing variants and multi-frame voting. The system supports both guaranteed
+> advance pre-bookings and unreserved walk-in entry: a pre-booked vehicle is routed to
+> its held bay, while a walk-in vehicle is automatically allocated the next available bay,
+> raising the SG90 boom barrier and highlighting the assigned bay on the live dashboard.
+> If the lot is full or access is ambiguous, the barrier remains closed. Exit is handled
+> symmetrically: the plate is matched against active sessions, the bay is released,
+> and an itemised receipt is produced. Because occupancy is derived from entry and exit
+> events rather than measured per bay, the system's hardware cost is constant with respect
+> to lot size. The implementation comprises a six-bay facility, a real-time Next.js
 > dashboard, a role-aware operator console, a monochrome design system, and a
 > hardware-in-the-loop simulator for demonstration without physical cameras.
 
@@ -85,7 +85,7 @@ availability, controlled access and auditable billing.
 | # | Objective | How it is met in the build | How it is evidenced |
 |---|---|---|---|
 | O1 | Detect and read vehicle plates from gate frames | YOLOv11 plate detector + EasyOCR with 4 preprocessing variants and 3-frame voting | Working pipeline; per-stage diagnostics API |
-| O2 | Authorise only pre-registered vehicles | Unique match against `PENDING_ARRIVAL` bookings; refuse unknown/ambiguous plates | Simulated unauthorised entry keeps barrier closed |
+| O2 | Authorise pre-booked and walk-in vehicles | Unique match against `PENDING_ARRIVAL` bookings or dynamic free bay assignment via `ALLOW_WALKIN_ENTRY` | Simulated walk-in & booking tests; full lot refusal |
 | O3 | Honour the bay the driver booked | Booking binds `slot_id`; entry allocator prefers that bay | Executed test: B3 requested → B3 allocated |
 | O4 | Derive occupancy from gate events | Slot state machine driven by entry/exit only | Layout, summary and WebSocket events consistent after entry/exit |
 | O5 | Control a physical barrier automatically | SG90 servo, 0°/90°, 5 s hold, gated on backend `open_barrier` | Firmware logic + API contract verified |
@@ -105,6 +105,7 @@ availability, controlled access and auditable billing.
 - One parking facility with six bays across two zones.
 - Two gate camera nodes (entry, exit) with servo barriers.
 - Pre-booking through a web application with bay selection.
+- Dynamic walk-in entry allocation for spontaneous arrivals.
 - Plate-based entry authorisation and exit release.
 - Real-time dashboard, driver pass, receipts and operator console.
 - Billing computation and receipt generation.
@@ -114,7 +115,6 @@ availability, controlled access and auditable billing.
 
 | Excluded | Reason |
 |---|---|
-| Walk-in / unregistered entry | Deliberately removed to keep the access policy unambiguous: no booking, no entry. Re-enabling it requires a reservation-buffer policy, which is listed as future work. |
 | Online payment | Adds a payment-gateway integration and compliance surface with no bearing on the core contribution. Billing is computed and itemised, not charged. |
 | Multi-level / multi-lot management | The architecture generalises, but a second lot multiplies hardware and is unnecessary to demonstrate the concept. |
 | Native mobile app | The web app is responsive and installable in a browser; a native client is a packaging exercise. |

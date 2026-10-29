@@ -189,14 +189,17 @@ allocate_entry_slot(plate, confidence, candidates):
         if same canonical plate within 10 s: return "already_allocated"
         match = unique match among PENDING_ARRIVAL bookings
         if match is ambiguous:            return "ambiguous"
-        if match is none:                 return "unauthorized"
-        bay = booking.slot_id if still AVAILABLE/ALLOCATED
+        if match is none:
+            if not ALLOW_WALKIN_ENTRY:    return "unauthorized"
+            booking = None                # proceed with dynamic walk-in allocation
+        bay = booking.slot_id if (booking and booking.slot_id)
               else lowest-numbered AVAILABLE bay
         if no bay:                        return "parking_full"
         bay.status = OCCUPIED
-        booking.status = CHECKED_IN
+        if booking: booking.status = CHECKED_IN
         create session(ACTIVE, plate, bay, booking, evidence)
         log DetectionEvent
+        broadcast slot.allocated (signals UI to display bay callout & highlight card)
         return { status: "allocated", slot: bay, open_barrier: true }
 ```
 
@@ -204,6 +207,8 @@ Notes:
 
 - The **bay the driver booked wins** over the lowest-numbered bay. This was a real bug,
   fixed by reading `pending_booking.slot_id` first.
+- **Walk-in support:** Unreserved vehicles automatically receive the first available bay,
+  enabling spontaneous access while preserving held reservations.
 - The lock is an in-process `threading.Lock`. It is correct for one Uvicorn worker and
   insufficient for multiple workers — see limitations.
 - Confidence here is the detection/candidate confidence supplied by the pipeline; the

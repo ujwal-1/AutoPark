@@ -7,14 +7,11 @@
 
 ## 1. Current limitations
 
-### L1 — No walk-in entry (policy decision)
+### L1 — Walk-in dynamic allocation policy (implemented)
 
-**What:** A vehicle without a pre-booking is refused, even if bays are free.
-**Why:** it removes the hardest policy question (how many bays are held back for arrivals)
-and keeps allocation unambiguous.
-**Consequence:** the system is a *pre-booked gated lot*, not a general public car park.
-**Mitigation today:** the operator console can simulate an authorised entry for a demo.
-**Fix:** see §2.1.
+**What:** Spontaneous walk-in entry is supported via `ALLOW_WALKIN_ENTRY`. When an unreserved vehicle arrives, the allocator assigns the lowest-numbered available bay, opens the barrier, and highlights the bay on the live deck. If all bays are occupied, it signals `parking_full`.
+**Policy consideration:** Pre-booked slots take precedence; walk-in admissions draw exclusively from unreserved, available bays.
+**Mitigation:** Live WebSocket updates ensure driver immediately sees their assigned slot on their device or gate terminal upon entry.
 
 ### L2 — Occupancy is inferred, not measured
 

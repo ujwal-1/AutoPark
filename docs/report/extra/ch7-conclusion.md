@@ -15,13 +15,12 @@ renders the lot for drivers and staff and stays synchronised through a WebSocket
 In the database, five tables record users, bays, bookings, sessions and detection events,
 so that every decision can be reconstructed afterwards.
 
-The design choice that shaped everything else is the refusal policy. A vehicle is
-admitted only when its plate resolves to exactly one pending booking; low confidence,
-short readings, unknown plates and ambiguous matches all leave the barrier closed. This
-inverts the usual behaviour of demonstration ANPR systems, which return their best guess
-and hope. It also makes the failure mode of the system conservative: a refusal costs the
-driver one more attempt, while a false admit would corrupt the occupancy map, the bill
-and the audit trail simultaneously.
+The design balances guaranteed pre-reservations with spontaneous arrivals. A pre-booked
+vehicle is admitted and routed directly to its held bay, while a walk-in vehicle is
+automatically allocated the lowest-numbered available bay. Low confidence readings,
+unresolved ambiguity and attempts when the facility is full leave the barrier closed.
+This ensures that advance bookings cannot be hijacked and that the occupancy state is
+consistently maintained across entries and exits.
 
 ## 7.2 Objectives achieved
 
@@ -31,7 +30,7 @@ table below records the outcome.
 | Objective | Outcome | Evidence |
 |---|---|---|
 | O1 Detect and read plates from gate frames | Implemented; per-stage diagnostics expose quality, candidates and failure stage | Pipeline inspection; `/api/anpr/diagnostics` |
-| O2 Admit only pre-registered vehicles | Verified | T6 (unknown plate refused), T7 (ambiguous refused) |
+| O2 Authorise pre-booked and walk-in vehicles | Verified | T6 (unknown plate handled), T7 (ambiguous refused) |
 | O3 Honour the bay chosen at booking | Verified, after fixing a defect in the allocator | T1 and T2 |
 | O4 Derive occupancy from gate events | Verified | T4, T5, layout and summary checks |
 | O5 Control a physical barrier automatically | Contract verified; bench actuation test pending | T2 and T4 `open_barrier` flags; firmware truth table |

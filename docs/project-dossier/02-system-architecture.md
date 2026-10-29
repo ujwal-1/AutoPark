@@ -309,7 +309,7 @@ true` from the backend leaves the arm at 0°.
 | ID | Decision | Alternatives considered | Rationale | Trade-off accepted |
 |---|---|---|---|---|
 | D1 | Two gate cameras, no bay sensors | ultrasonic per bay; overhead vision | constant hardware cost; minimal retrofit | occupancy depends on plate reads |
-| D2 | Pre-booked-only access | walk-in with buffer; hybrid | unambiguous policy; no double-allocation risk | no spontaneous visitors |
+| D2 | Hybrid pre-booked & walk-in access | pre-booked only | accommodates advance reservations while serving spontaneous arrivals dynamically | walk-ins cannot take reserved bays |
 | D3 | Backend owns all state | camera-side decisions | single source of truth; auditable | backend is a single point of failure |
 | D4 | Refuse on ambiguity | best-score admit | a false admit corrupts occupancy and revenue | occasional false rejects |
 | D5 | SQLite | PostgreSQL | zero-ops, adequate for one lot | limited write concurrency |

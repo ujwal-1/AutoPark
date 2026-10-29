@@ -290,10 +290,10 @@ order**:
 3. **Already inside?** — plate matches an ACTIVE session → `already_allocated`
    (idempotent duplicate-frame handling).
 4. **Cooldown** — same canonical plate within 10 s → `already_allocated`.
-5. **Booking match** — unique, above threshold, non-ambiguous → authorised.
+5. **Booking match or walk-in policy** — unique non-ambiguous booking matches held bay; if no booking exists and `ALLOW_WALKIN_ENTRY` is active, the first available bay is dynamically allocated. If lot is full, returns `parking_full`.
 6. **Bay binding** — use the booking's `slot_id` if it is still AVAILABLE/ALLOCATED;
-   otherwise fall back to the lowest-numbered free bay.
-7. **Commit** — bay → OCCUPIED, session ACTIVE, booking CHECKED_IN, `DetectionEvent`
+   otherwise assign the lowest-numbered free bay.
+7. **Commit** — bay → OCCUPIED, session ACTIVE, booking CHECKED_IN (if booked), `DetectionEvent`
    written with evidence.
 8. **Actuate** — response includes `open_barrier: true`, `barrier_action: OPEN`.
 
@@ -308,7 +308,7 @@ parse prose.
 |---|---|---|---|
 | `no_plate` | no plate box, unreadable, fewer than 4 alphanumerics (entry), bad quality | closed | "no plate" + stage |
 | `ignored` | confidence < 0.75 | closed | low-confidence event |
-| `unauthorized` | plate matches no pending booking | closed | driver + plate + alert |
+| `unauthorized` | plate matches no booking when walk-in is disabled | closed | driver + plate + alert |
 | `ambiguous` | two bookings within 0.10 | closed | both candidate plates |
 | `already_allocated` | duplicate frame / cooldown / already inside | closed | existing bay |
 | `parking_full` | no free bay | closed | full-lot alert |

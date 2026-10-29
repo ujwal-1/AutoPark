@@ -41,12 +41,12 @@ operator console is reachable directly at `/operator`.
 
 - Availability counter (`x / 6`) and per-zone filter (All / Zone A / Zone B).
 - Search by bay, plate or zone.
-- Bay cards show status, zone, plate (if occupied), rate, and one primary action:
-  `Pre-Book Bay` or `View Active Pass`.
+- Live Gate Entry Callout: prominent announcement banner highlighting newly admitted vehicle and its assigned bay.
+- Bay cards show status, zone, plate (if occupied), rate, active green `PARK HERE` visual highlight on newly assigned bays, and primary actions: `Pre-Book Bay` or `View Active Pass`.
 - Activity log streams WebSocket events.
 - Unauthorised-entry banner appears on refusal events.
 
-**Design intent:** a driver should answer "is there space, and where?" in under five
+**Design intent:** a driver should answer "is there space, and where do I park?" in under five
 seconds, on a phone, without scrolling horizontally.
 
 ### 3.2 Pre-Book (`/book`)

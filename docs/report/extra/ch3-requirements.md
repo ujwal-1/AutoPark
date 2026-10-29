@@ -5,7 +5,7 @@ whether the requirements can be met with the available hardware and skills.
 
 | Actor | Interaction with the system |
 |---|---|
-| Driver | Registers, pre-books a bay, arrives at the entry gate, collects a receipt at exit |
+| Driver | Registers, pre-books a bay or enters as a walk-in, arrives at the entry gate, collects a receipt at exit |
 | Operator / security staff | Monitors the lot, inspects recognition diagnostics, releases a stuck bay, resets the facility |
 | Entry camera node | Captures frames, uploads them, opens the entry barrier on command |
 | Exit camera node | Captures frames, uploads them, opens the exit barrier on command |
@@ -24,7 +24,7 @@ identifier in the first column is used in the traceability matrix in Chapter 7.
 | FR-04 | The system shall refuse a second active booking for the same user or the same plate | HTTP 400 naming the existing bay |
 | FR-05 | The system shall capture a frame at the entry gate at a fixed interval | Firmware posts a multipart JPEG every 5 s |
 | FR-06 | The system shall locate and read a licence plate from the captured frame | Pipeline returns a candidate list with confidences, or a failure stage |
-| FR-07 | The system shall admit a vehicle only when its plate matches exactly one pending booking | Unknown plate returns `unauthorized`; two close matches return `ambiguous` |
+| FR-07 | The system shall admit pre-booked vehicles to their held bay and dynamically allocate the first available bay to walk-in arrivals | Booked vehicle assigned held bay; walk-in assigned first free bay and admitted; full lot returns `parking_full` |
 | FR-08 | The system shall allocate the bay chosen at booking time when it is still free | Entry response slot equals the booked slot |
 | FR-09 | The system shall not double-allocate on repeated frames from the same vehicle | Repeat entry returns `already_allocated` without creating a second session |
 | FR-10 | The system shall open the barrier only on an explicit authorisation from the server | Firmware opens only when `open_barrier` is true |
@@ -59,7 +59,7 @@ identifier in the first column is used in the traceability matrix in Chapter 7.
 | Single laptop hosts both services | No horizontal scaling; in-process locking is sufficient but not more |
 | Facility LAN, no public address | No TLS, no external payment callback; documented as a limitation |
 | SG90 torque and 5 V supply | Lightweight arm only; no position feedback available |
-| Academic timeline | Walk-in entry and payment integration deferred; both are policy-heavy rather than technically central |
+| Academic timeline | Payment gateway integration deferred to future work; walk-in allocation dynamically enabled via `ALLOW_WALKIN_ENTRY` policy |
 | Indian plate formats | Matching must tolerate state prefixes, two-line plates and visually confusable characters |
 
 ## 3.5 Feasibility
@@ -85,8 +85,9 @@ the operator console and both are recorded.
 
 ## 3.6 Scope boundary
 
-The requirements above deliberately exclude three capabilities that a commercial product
-would need: admission of unbooked vehicles, online payment, and multi-lot management.
-Each is excluded because it introduces policy or integration work that does not test the
-central hypothesis of the project — that occupancy can be derived from two gate cameras
-instead of a sensor per bay. The exclusions are revisited as future work in Chapter 7.
+The requirements above deliberately exclude two capabilities that a commercial product
+would need: online payment processing, and multi-lot management.
+Each is excluded because it introduces payment compliance or multi-tenant infrastructure
+work that does not test the central hypothesis of the project — that occupancy can be
+derived from two gate cameras instead of a sensor per bay. Unreserved walk-in entry is
+fully integrated and supported alongside advance reservations.
