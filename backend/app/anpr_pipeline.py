@@ -180,59 +180,67 @@ def run_multi_variant_ocr(plate_crop: np.ndarray, reader: Any) -> Tuple[List[Dic
     if plate_crop is None or plate_crop.size == 0 or reader is None:
         return [], {}
 
-    variants = generate_plate_variants(plate_crop)
     raw_candidates: List[Dict[str, Any]] = []
 
-    # Prioritize variants most robust on ESP32-CAM images (adaptive thresholding best preserves digit 4 vs L)
+    # Evaluate both normal and 180° rotated orientations (handles upside-down camera mounts)
+    orientations = [
+        ("norm", plate_crop),
+        ("rot180", cv2.rotate(plate_crop, cv2.ROTATE_180))
+    ]
+
     eval_order = ["adaptive", "adaptive_inv", "otsu", "clahe"]
 
-    for var_name in eval_order:
-        var_img = variants.get(var_name)
-        if var_img is None:
-            continue
+    for orient_name, crop_img in orientations:
+        variants = generate_plate_variants(crop_img)
 
-        try:
-            results = reader.readtext(
-                var_img,
-                allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
-                detail=1,
-                paragraph=False
-            )
-            if not results:
+        for var_name in eval_order:
+            var_img = variants.get(var_name)
+            if var_img is None:
                 continue
 
-            # Sort bounding boxes top-to-bottom (y-coordinate) then left-to-right (x-coordinate)
-            # This correctly handles multi-line plates (e.g. KA 05 on line 1, KK 0403 on line 2)
-            sorted_res = sorted(results, key=lambda item: (item[0][0][1] // 25, item[0][0][0]))
+            try:
+                results = reader.readtext(
+                    var_img,
+                    allowlist="ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789",
+                    detail=1,
+                    paragraph=False
+                )
+                if not results:
+                    continue
 
-            parts = []
-            confidences = []
-            for bbox, text, confidence in sorted_res:
-                clean_part = re.sub(r'[^A-Z0-9]', '', text.upper().strip())
-                if clean_part:
-                    parts.append(clean_part)
-                    confidences.append(float(confidence))
+                # Sort bounding boxes top-to-bottom (y-coordinate) then left-to-right (x-coordinate)
+                # This correctly handles multi-line plates (e.g. KA 05 on line 1, KK 0403 on line 2)
+                sorted_res = sorted(results, key=lambda item: (item[0][0][1] // 25, item[0][0][0]))
 
-            full_text = "".join(parts)
-            avg_conf = (sum(confidences) / len(confidences)) if confidences else 0.0
+                parts = []
+                confidences = []
+                for bbox, text, confidence in sorted_res:
+                    clean_part = re.sub(r'[^A-Z0-9]', '', text.upper().strip())
+                    if clean_part:
+                        parts.append(clean_part)
+                        confidences.append(float(confidence))
 
-            # Filter out short fragments or repeated single-characters (e.g. "1111", "AAAA")
-            if len(full_text) >= 3 and len(set(full_text)) > 1:
-                raw_candidates.append({
-                    "text": full_text,
-                    "canonical": canonicalize_plate(full_text),
-                    "confidence": round(avg_conf, 3),
-                    "variant": var_name
-                })
+                full_text = "".join(parts)
+                avg_conf = (sum(confidences) / len(confidences)) if confidences else 0.0
 
-            # Performance short-circuit: If we have evaluated at least 2 variants and already have
-            # a high-confidence full plate candidate (>=6 chars, conf >= 0.75), skip remaining variants
-            if len(raw_candidates) >= 2:
-                top_hits = [c for c in raw_candidates if len(c["text"]) >= 6 and c["confidence"] >= 0.75]
-                if len(top_hits) >= 2:
+                # Filter out short fragments or repeated single-characters (e.g. "1111", "AAAA")
+                if len(full_text) >= 3 and len(set(full_text)) > 1:
+                    raw_candidates.append({
+                        "text": full_text,
+                        "canonical": canonicalize_plate(full_text),
+                        "confidence": round(avg_conf, 3),
+                        "variant": f"{orient_name}_{var_name}"
+                    })
+
+                # Performance short-circuit: If we have a high-confidence full plate (>=6 chars, conf >= 0.75), skip
+                if any(len(c["text"]) >= 6 and c["confidence"] >= 0.75 for c in raw_candidates):
                     break
-        except Exception as e:
-            logger.warning(f"Error running OCR on variant {var_name}: {e}")
+            except Exception as e:
+                logger.warning(f"Error running OCR on variant {var_name} ({orient_name}): {e}")
+
+        # If we found a high confidence plate in this orientation, no need to check other orientations
+        if any(len(c["text"]) >= 6 and c["confidence"] >= 0.75 for c in raw_candidates):
+            break
 
     # Consolidate candidates across variants: count frequency, boost agreement
     consolidated: Dict[str, Dict[str, Any]] = {}
