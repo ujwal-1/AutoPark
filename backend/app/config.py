@@ -19,8 +19,9 @@ class Settings(BaseSettings):
     # Hardware/Camera settings
     CAMERA_OFFLINE_TIMEOUT_SECONDS: int = 30
 
-    # Entry policy: Allow walk-in vehicles (auto-assign available bay) or require pre-booking
-    ALLOW_WALKIN_ENTRY: bool = True
+    # Entry policy: Require pre-booking by default (AGENTS.md Invariant 2)
+    # Set to False to stop random camera noise from filling up parking bays.
+    ALLOW_WALKIN_ENTRY: bool = False
     
     # JWT & Auth
     # Set JWT_SECRET in .env for anything beyond local development. The fallback

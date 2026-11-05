@@ -167,7 +167,7 @@ export const UserPreCheckinPanel: React.FC<UserPreCheckinPanelProps> = ({
             </h2>
             <p className="text-xs text-ink2 mt-0.5">
               Welcome back,{' '}
-              <span className="text-ink font-semibold">{currentUser.full_name || currentUser.username}</span>.
+              <span className="text-ink font-semibold">{currentUser.full_name || currentUser.username || currentUser.email || 'Driver'}</span>.
               Register your vehicle before approaching the camera gate.
             </p>
           </div>

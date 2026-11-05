@@ -62,8 +62,9 @@ export const Navbar: React.FC<NavbarProps> = ({ wsConnected = true }) => {
     { href: '/operator', label: 'Operator console' },
   ];
 
-  const initials = currentUser
-    ? currentUser.username.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'OP'
+  const displayName = currentUser?.username || currentUser?.email || '';
+  const initials = displayName
+    ? displayName.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase() || 'OP'
     : 'OP';
 
   return (
@@ -124,7 +125,7 @@ export const Navbar: React.FC<NavbarProps> = ({ wsConnected = true }) => {
                   {initials}
                 </span>
                 <span className="hidden sm:inline text-[11.5px] max-w-[110px] truncate text-[#E7E3D8]">
-                  {currentUser.username}
+                  {displayName || 'User'}
                 </span>
                 <button
                   onClick={handleLogout}

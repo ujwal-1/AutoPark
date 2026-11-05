@@ -45,6 +45,23 @@ logger = logging.getLogger("AutoPark.Main")
 # Async lock: guarantees only ONE heavy YOLO + EasyOCR job runs at a time without blocking the asyncio event loop
 anpr_lock = asyncio.Lock()
 
+# NodeMCU ESP8266 Barrier Controller IP
+barrier_controller_ip: Optional[str] = None
+
+async def trigger_physical_barrier(gate: str):
+    """Triggers the physical boom barrier on the NodeMCU ESP8266 controller."""
+    global barrier_controller_ip
+    if not barrier_controller_ip:
+        return
+    import httpx
+    try:
+        url = f"http://{barrier_controller_ip}/barrier/{gate.lower()}"
+        async with httpx.AsyncClient(timeout=2.0) as client:
+            resp = await client.get(url)
+            logger.info(f"[BARRIER ACTUATION] Successfully pulsed {gate} barrier on ESP8266 ({url}, code {resp.status_code})")
+    except Exception as e:
+        logger.warning(f"[BARRIER ACTUATION ERROR] Failed to pulse {gate} barrier on ESP8266: {e}")
+
 # Create database tables
 Base.metadata.create_all(bind=engine)
 
@@ -253,6 +270,17 @@ class FrameProcessor:
             )
 
             if res["status"] in ["allocated", "already_allocated"]:
+                if res.get("open_barrier"):
+                    await trigger_physical_barrier("entry")
+                    await ws_manager.broadcast({
+                        "type": "barrier.entry",
+                        "data": {
+                            "action": "OPEN",
+                            "slot": res.get("slot"),
+                            "plate": res.get("plate_number") or det_plate,
+                            "message": "Entry boom barrier lifted (Servo 90°)"
+                        }
+                    })
                 await ws_manager.broadcast({
                     "type": "slot.allocated",
                     "data": {
@@ -389,7 +417,18 @@ class FrameProcessor:
                 f"Released Slot: {res.get('slot')}"
             )
 
-            if res["status"] == "released":
+            if res["status"] in ["released", "already_released"]:
+                if res.get("open_barrier"):
+                    await trigger_physical_barrier("exit")
+                    await ws_manager.broadcast({
+                        "type": "barrier.exit",
+                        "data": {
+                            "action": "OPEN",
+                            "slot": res.get("slot"),
+                            "plate": res.get("plate_number") or det_plate,
+                            "message": "Exit boom barrier lifted (Servo 90°)"
+                        }
+                    })
                 await ws_manager.broadcast({
                     "type": "slot.released",
                     "data": {
@@ -550,6 +589,7 @@ async def detect_entry(
 
     if res["status"] in ["allocated", "already_allocated"]:
         if res.get("open_barrier"):
+            await trigger_physical_barrier("entry")
             await ws_manager.broadcast({
                 "type": "barrier.entry",
                 "data": {
@@ -665,6 +705,7 @@ async def detect_exit(
                 "billed_amount": res.get("billed_amount")
             }
         })
+        await trigger_physical_barrier("exit")
         await ws_manager.broadcast({
             "type": "barrier.exit",
             "data": {
@@ -693,6 +734,39 @@ async def detect_exit(
         entry_time=res.get("entry_time"),
         exit_time=res.get("exit_time")
     )
+
+
+# ==================== BARRIER CONTROLLER ENDPOINTS (ESP8266) ====================
+
+@app.post("/api/barrier/register")
+async def register_barrier_controller(data: dict):
+    global barrier_controller_ip
+    barrier_controller_ip = data.get("ip")
+    logger.info(f"✅ Registered ESP8266 Barrier Controller at http://{barrier_controller_ip}")
+    return {"status": "ok", "registered_ip": barrier_controller_ip}
+
+@app.get("/api/barrier/status")
+async def get_barrier_controller_status():
+    global barrier_controller_ip
+    return {
+        "connected": barrier_controller_ip is not None,
+        "controller_ip": barrier_controller_ip
+    }
+
+@app.post("/api/barrier/trigger/{gate}")
+async def manual_trigger_barrier(gate: str):
+    gate_upper = gate.upper()
+    if gate_upper not in ["ENTRY", "EXIT"]:
+        raise HTTPException(status_code=400, detail="Gate must be 'entry' or 'exit'")
+    await trigger_physical_barrier(gate_upper)
+    await ws_manager.broadcast({
+        "type": f"barrier.{gate.lower()}",
+        "data": {
+            "action": "OPEN",
+            "message": f"Manual test trigger on {gate_upper} barrier (Servo 90°)"
+        }
+    })
+    return {"status": "triggered", "gate": gate_upper, "controller_ip": barrier_controller_ip}
 
 
 # ==================== AUTHENTICATION ENDPOINTS ====================

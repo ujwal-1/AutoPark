@@ -1,0 +1,863 @@
+<!-- ============================ CHAPTER 11 ============================ -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 11</span><span class="mk">@@C11@@</span>Overall Working of the Project</h1>
+
+<p>This chapter follows the system through the five flows that constitute its working life &mdash; a pre-booking, an
+entry by a booked vehicle, an entry by an unbooked walk-in vehicle, an exit, and an operator intervention &mdash; and
+then places those flows on the network and inside the gate firmware. The sequence diagrams are not schematic: each
+message corresponds to a route or a database write that exists in the repository, and the alternative blocks correspond
+to the refusal branches that Chapter&nbsp;8 described.</p>
+
+<h2>11.1 The five flows at a glance</h2>
+
+<p>Every operation in AutoPark is a variation of one pattern: a client or a camera sends evidence to the server, the
+server reads the current state of the lot, applies one policy, writes one transaction, publishes one event and replies
+with an explicit outcome. There are five such flows. The <i>booking flow</i> binds a bay to a plate before the vehicle
+arrives. The <i>booked-entry flow</i> consumes that booking and turns it into a session. The <i>walk-in entry flow</i>
+creates a session without a booking, taking the lowest-numbered free bay. The <i>exit flow</i> closes a session, frees
+the bay and produces the bill. The <i>operator flow</i> is the exception path: it releases a bay, resets the
+demonstration, or inspects why a decision was taken. No other flow can change the occupancy of a bay, which is what
+makes the occupancy invariant checkable by inspection.</p>
+
+<h2>11.2 Booking flow</h2>
+
+<p>A driver selects a bay, a plate, a vehicle category and an expected duration on the pre-booking page. The client
+posts the request with the driver's bearer token to <span class="mono">/api/bookings/pre-checkin</span>. The server
+normalises the plate, rejects it if it has fewer than four characters, rejects the request if the driver already has an
+active session, rejects it if the same plate is already inside the lot, and resolves the bay: the requested bay if it
+is still free, otherwise the lowest-numbered free bay. The bay is marked ALLOCATED and the booking is written with
+status PENDING_ARRIVAL and an expiry of the requested duration. Two events are published &mdash;
+<span class="mono">booking.created</span> and, if the bay changed, <span class="mono">slot.released</span> for the bay
+that was given up &mdash; and the response returns the bay number that the driver is promised.</p>
+
+<figure class="w62">
+  <img src="../figures/fig-03.png" alt="Booking sequence diagram">
+  <figcaption><span class="mk">@@FG10@@</span>Fig. 10 : Booking sequence &mdash; reservation before arrival</figcaption>
+</figure>
+
+<p>The visible result is the pass screen, which names the bay, its zone and its location within the lot. From that
+moment the bay is not offered to any other driver, and the entry allocator will bind that specific bay rather than the
+next free one. This is the flow that makes Objective&nbsp;3 testable: the promise is a bay identifier, not a zone.</p>
+
+<h2>11.3 Booked entry flow</h2>
+
+<p>The entry node captures a frame, posts it to <span class="mono">/api/detection/entry</span> and waits. On the
+server the frame passes the quality gate, the detector locates the plate, the four preprocessing variants are read and
+the burst vote produces a ranked candidate list. The candidates are compared with every booking that is still
+PENDING_ARRIVAL. If exactly one booking scores at least 0.72 and is separated from the runner-up by 0.10, the allocator
+binds the booking's bay, marks the bay OCCUPIED, marks the booking CHECKED_IN, creates an ACTIVE session and writes a
+detection event. The response carries <span class="mono">status: allocated</span>, the bay, and
+<span class="mono">open_barrier: true</span>. The firmware reads that boolean, sweeps the servo to 90&deg;, holds for
+five seconds and returns to 0&deg;.</p>
+
+<figure class="w62">
+  <img src="../figures/fig-04.png" alt="Entry sequence diagram">
+  <figcaption><span class="mk">@@FG11@@</span>Fig. 11 : Entry sequence &mdash; authorised entry and refusal paths</figcaption>
+</figure>
+
+<p>The lower half of Fig.&nbsp;11 is the branch that matters most. If the plate is unreadable, unknown, or matches two
+bookings, the status is <span class="mono">no_plate</span>, <span class="mono">unauthorized</span> or
+<span class="mono">ambiguous</span> respectively, <span class="mono">open_barrier</span> is false, and the firmware does
+not move. The event published on the WebSocket channel carries the plate, the confidence and the failure stage, so the
+operator console shows the reason rather than a generic denial. The whole branch is one code path with three exit
+labels, not three separate implementations, which is why a defect in the refusal logic cannot affect only one status.</p>
+
+<h2>11.4 Walk-in entry flow</h2>
+
+<p>A walk-in vehicle is mechanically identical to a booked one and differs in a single decision: when no booking
+matches, the allocator consults the walk-in policy. If admission is enabled and a bay is free, the lowest-numbered free
+bay is allocated, the bay is marked OCCUPIED, a session is created with no booking reference, and the response names
+the bay so that the driver can be told where to go. The live dashboard highlights the newly allocated bay and the
+arrival callout names the plate and the bay, which is what allows an unattended lot to route a spontaneous arrival
+without a printed ticket. If the walk-in policy is disabled the same request returns
+<span class="mono">unauthorized</span>, and if no bay is free it returns <span class="mono">parking_full</span> &mdash;
+a different message, because the driver's problem is different.</p>
+
+<p>The policy switch is a deliberate operational choice rather than a hidden default. A facility that promises every
+bay to advance bookings sets it off; a department lot that must not turn away staff sets it on. The setting is read on
+every request, so it can be changed without a restart, and the audit row records which path was taken.</p>
+
+<h2>11.5 Exit flow</h2>
+
+<p>The exit node posts to <span class="mono">/api/detection/exit</span> in exactly the same way. The candidates are now
+compared with ACTIVE sessions instead of pending bookings. A unique match closes the session, stamps the exit time,
+returns the bay to AVAILABLE, completes the booking if there was one, computes the duration in whole minutes and
+applies the tariff. The response carries the released bay, the duration, the amount and
+<span class="mono">open_barrier: true</span>; the client renders the receipt, and the WebSocket publishes
+<span class="mono">slot.released</span>, <span class="mono">vehicle.exited</span> and
+<span class="mono">barrier.exit</span> so that the dashboard and the operator console update together.</p>
+
+<figure class="w62">
+  <img src="../figures/fig-05.png" alt="Exit sequence diagram">
+  <figcaption><span class="mk">@@FG12@@</span>Fig. 12 : Exit sequence &mdash; release and billing</figcaption>
+</figure>
+
+<p>If the plate matches no active session the status is <span class="mono">no_active_session</span> and the barrier
+stays down; if two sessions are equally close the status is <span class="mono">ambiguous</span> and the operator is
+alerted. Neither case produces a bill, because a bill is only ever produced by a closed session. The one recovery path
+that the design requires is the operator release described next.</p>
+
+<h2>11.6 Operator exception handling</h2>
+
+<p>Three situations require a human. First, a vehicle whose exit plate cannot be read leaves a session open; the
+operator sees the bay as occupied, verifies the vehicle physically, and releases the bay from the console, which closes
+the session and writes an audit entry naming the operator action. Second, a driver whose entry was refused needs to
+know why; the console shows the failure stage, the quality grade and the candidate list from the diagnostic record, so
+the operator can distinguish a dirty plate from an unpaid booking. Third, a demonstration must start from a known
+state; the reset route closes every session, returns every bay to AVAILABLE, clears cooldowns and publishes
+<span class="mono">demo.reset</span>. All three actions are available in the console, all three are idempotent, and all
+three publish events, so no screen is left showing a state that no longer exists.</p>
+
+<h2>11.7 Deployment topology</h2>
+
+<p>Figure&nbsp;13 shows the deployment. Everything runs on one facility LAN with no cloud dependency. The Next.js client
+listens on port 3000 and talks to the API on port 8000 over REST for queries and over a WebSocket for events. The API
+owns the SQLite file and is the only process that writes to it. The two ESP32-CAM nodes are ordinary LAN clients: they
+post JPEGs to the detection routes and receive JSON. The host laptop is therefore the whole server tier, which is
+adequate for a six-bay pilot and is also the largest single point of failure in the system; the report treats that as a
+deployment limitation rather than pretending it is a fault-tolerant design.</p>
+
+<figure class="w92">
+  <img src="../figures/fig-09.png" alt="Deployment topology">
+  <figcaption><span class="mk">@@FG13@@</span>Fig. 13 : Deployment topology on the facility LAN</figcaption>
+</figure>
+
+<h2>11.8 Firmware lifecycle</h2>
+
+<p>The firmware is a loop with one decision in it. On power-up the node sets the servo to 0&deg; so that the gate is
+closed before anything else happens, connects to Wi-Fi with a bounded retry count, initialises the camera and enters
+the capture cycle. Each cycle captures a frame, posts it with a fifteen-second timeout, parses the JSON and asks one
+question: is <span class="mono">open_barrier</span> true? If it is, the arm sweeps to 90&deg;, waits five seconds and
+returns. If it is not &mdash; because the field is false, because the response was malformed, because the request timed
+out, or because the server could not be reached at all &mdash; the arm stays at 0&deg; and the node logs the outcome and
+waits for the next cycle. Camera initialisation failure is handled explicitly: the node reports the fault on the serial
+line and halts capture rather than posting blank frames, so a failed camera cannot be mistaken for an empty lane.</p>
+
+<figure class="h68">
+  <img src="../figures/fig-13.png" alt="Firmware lifecycle">
+  <figcaption><span class="mk">@@FG14@@</span>Fig. 14 : Firmware lifecycle of a gate node</figcaption>
+</figure>
+
+<p>The consequence is a device that cannot open a gate by itself. It has no notion of a booking, a bay, a tariff or a
+session, and it holds no state across cycles. If the server is upgraded, restarted or disconnected, the nodes keep
+capturing and posting, and every gate remains closed until the server answers with an explicit true. That is the
+intended direction of failure for an access-control device, and it is the property that Objective&nbsp;5 is written
+against.</p>
+
+<h2>11.9 Real-time event flow</h2>
+
+<p>Every transition is published on the single channel <span class="mono">/ws/parking</span>. Clients open the socket on
+mount, patch their local state from each event, and re-read a snapshot after any reconnect. Table&nbsp;12 lists the
+event types that the server publishes and the screen that consumes each one. The list is short on purpose: an event
+vocabulary that grows without limit is a symptom of state being invented in the client.</p>
+
+<table>
+<caption><span class="mk">@@TB12@@</span>Table 12 : WebSocket event catalogue</caption>
+<thead><tr><th style="width:23%">Event type</th><th style="width:31%">Published when</th><th style="width:24%">Payload essentials</th><th style="width:22%">Consumed by</th></tr></thead>
+<tbody>
+<tr><td class="mono">slot.allocated</td><td>A bay is bound to a session at entry</td><td>Slot, plate, session id</td><td>Live Deck, pass, operator plan</td></tr>
+<tr><td class="mono">slot.released</td><td>A session closes or a booking gives up a bay</td><td>Slot, plate</td><td>Live Deck, operator plan</td></tr>
+<tr><td class="mono">vehicle.detected</td><td>A frame yields a plate candidate above threshold</td><td>Camera, plate, confidence</td><td>Operator camera panels</td></tr>
+<tr><td class="mono">vehicle.exited</td><td>An exit match closes a session</td><td>Plate, duration, amount</td><td>Receipts, operator</td></tr>
+<tr><td class="mono">entry.unauthorized</td><td>An entry is refused for any policy reason</td><td>Plate, status, failure stage</td><td>Operator alerts</td></tr>
+<tr><td class="mono">exit.no_session</td><td>An exit plate matches no active session</td><td>Plate, candidates</td><td>Operator alerts</td></tr>
+<tr><td class="mono">exit.ambiguous</td><td>An exit plate matches two sessions</td><td>Both candidate plates</td><td>Operator alerts</td></tr>
+<tr><td class="mono">parking.full</td><td>An entry is refused because no bay is free</td><td>Lot counters</td><td>Live Deck banner</td></tr>
+<tr><td class="mono">barrier.entry</td><td>The entry barrier is commanded open</td><td>Slot, plate</td><td>Operator gate panel</td></tr>
+<tr><td class="mono">barrier.exit</td><td>The exit barrier is commanded open</td><td>Slot, plate</td><td>Operator gate panel</td></tr>
+<tr><td class="mono">buzzer.triggered</td><td>An entry is admitted with audible confirmation</td><td>Camera</td><td>Operator gate panel</td></tr>
+<tr><td class="mono">booking.created</td><td>A pre-booking is accepted</td><td>Booking id, slot, plate</td><td>Pass screen, operator</td></tr>
+<tr><td class="mono">booking.cancelled</td><td>A booking is cancelled by the driver</td><td>Booking id, slot</td><td>Pass screen, operator</td></tr>
+<tr><td class="mono">demo.reset</td><td>The facility is reset between demonstrations</td><td>Counters</td><td>All screens</td></tr>
+</tbody>
+</table>
+
+<p>Two details make the channel safe to rely on. The server broadcasts after the transaction commits, never before, so
+a client that receives an event can be certain that a subsequent REST read will agree with it. And a client that
+reconnects re-reads the layout and summary before applying further events, so a missed message cannot leave a stale bay
+on screen. The second rule is the one that saves the demonstration when a laptop sleeps and wakes.</p>
+</div>
+
+<!-- ============================ CHAPTER 12 ============================ -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 12</span><span class="mk">@@C12@@</span>Results (Simulation / Experimental) and Justifications</h1>
+
+<p>This chapter reports what was observed, what was measured and what was not. The distinction is kept explicit
+throughout, because the most common weakness of a student report in this area is a single successful demonstration
+presented as a benchmark. Section&nbsp;12.1 defines the six levels at which the system was checked;
+Sections&nbsp;12.2&ndash;12.7 report the results at each applicable level; Section&nbsp;12.8 gives the engineering
+metrics that can be counted exactly; Section&nbsp;12.9 gives the analytical result that the project is really about;
+and Sections&nbsp;12.10&ndash;12.12 state the comparison, the threats to validity and the measurements that remain
+outstanding.</p>
+
+<h2>12.1 Levels of testing</h2>
+
+<p>Six levels were used, from a unit check of the tariff formula to a dry run of the demonstration. Table&nbsp;13
+records what each level exercises, the artefact that implements it, and whether a result is available in this report.
+The last column is the honest one: two levels are reported as not run, because the physical measurements they require
+were not completed before this submission.</p>
+
+<table>
+<caption><span class="mk">@@TB13@@</span>Table 13 : Levels of testing used in the project</caption>
+<thead><tr><th class="c" style="width:6%">L</th><th style="width:22%">Level</th><th style="width:40%">What it exercises</th><th style="width:20%">Artefact</th><th style="width:12%">Result</th></tr></thead>
+<tbody>
+<tr><td class="c">L1</td><td>Unit</td><td>Plate canonicalisation, similarity thresholds, tariff arithmetic</td><td>Functions in <span class="mono">slot_allocator.py</span></td><td>Pass</td></tr>
+<tr><td class="c">L2</td><td>API integration</td><td>Auth, booking, entry, exit, reset, manual release over HTTP</td><td><span class="mono">tests/test_api.py</span></td><td>Mostly pass, see 12.3</td></tr>
+<tr><td class="c">L3</td><td>Pipeline</td><td>Quality gate, detector, OCR variants, voting, diagnostics</td><td><span class="mono">tests/test_anpr_pipeline.py</span></td><td>Blocked, engine absent</td></tr>
+<tr><td class="c">L4</td><td>End-to-end scenario</td><td>Fifteen numbered checks from health to WebSocket</td><td><span class="mono">tests/test_final_autopark_verification.py</span></td><td>12 of 15 pass</td></tr>
+<tr><td class="c">L5</td><td>Interface</td><td>Live Deck, pass, booking, operator console, receipts</td><td>Observed in the browser, Figs 15&ndash;17</td><td>Pass, 6 checks</td></tr>
+<tr><td class="c">L6</td><td>Bench (hardware)</td><td>Servo timing, fail-closed behaviour, latency, recognition rate on frames</td><td>Protocol in 10.5, checklist H1&ndash;H7</td><td>Not run</td></tr>
+</tbody>
+</table>
+
+<h2>12.2 End-to-end automated checks</h2>
+
+<p>The suite in <span class="mono">tests/test_final_autopark_verification.py</span> contains fifteen numbered checks that
+were written to mirror the acceptance criteria of the project. Each one drives the application through its HTTP
+interface with a clean database, so the checks exercise the same code path as the cameras rather than internal
+functions. Table&nbsp;14 gives the fifteen checks and the result obtained on 31&nbsp;October&nbsp;2026 under
+<span class="mono">/opt/anaconda3/bin/python3</span> (Python 3.13.9) on the development laptop.</p>
+
+<table>
+<caption><span class="mk">@@TB14@@</span>Table 14 : End-to-end automated checks and their results</caption>
+<thead><tr><th class="c" style="width:6%">#</th><th style="width:34%">Check</th><th style="width:34%">What it asserts</th><th class="c" style="width:9%">Result</th><th style="width:17%">Note</th></tr></thead>
+<tbody>
+<tr><td class="c">01</td><td>API startup and health</td><td>Root, health, database and model flags respond</td><td class="c">Pass</td><td>&mdash;</td></tr>
+<tr><td class="c">02</td><td>Repeated valid image submissions</td><td>Three identical frames allocate once, then debounce</td><td class="c">Fail</td><td>No OCR engine</td></tr>
+<tr><td class="c">03</td><td>Frames with no plate</td><td>A blank frame returns <span class="mono">no_plate</span></td><td class="c">Pass</td><td>&mdash;</td></tr>
+<tr><td class="c">04</td><td>Malformed or empty images</td><td>Corrupt bytes are rejected, not crashed on</td><td class="c">Pass</td><td>&mdash;</td></tr>
+<tr><td class="c">05</td><td>Detector and OCR handling</td><td>A real fixture yields a plate box and candidates</td><td class="c">Fail</td><td>No OCR engine</td></tr>
+<tr><td class="c">06</td><td>Normalisation and confidence</td><td>O/0 and I/1 canonicalise; distinct plates do not match</td><td class="c">Pass</td><td>&mdash;</td></tr>
+<tr><td class="c">07</td><td>Authorised and unauthorised entry</td><td>Booked plate admitted; unknown plate refused</td><td class="c">Fail</td><td>Stale expectation</td></tr>
+<tr><td class="c">08</td><td>Correct slot allocation</td><td>The booked bay is the bay allocated</td><td class="c">Pass</td><td>&mdash;</td></tr>
+<tr><td class="c">09</td><td>Valid exit and slot release</td><td>Exit closes the right session and frees the bay</td><td class="c">Pass</td><td>&mdash;</td></tr>
+<tr><td class="c">10</td><td>Invalid exit handling</td><td>Unknown exit plate releases nothing</td><td class="c">Pass</td><td>&mdash;</td></tr>
+<tr><td class="c">11</td><td>Duplicate entry and exit</td><td>Repeat requests do not create a second session</td><td class="c">Pass</td><td>&mdash;</td></tr>
+<tr><td class="c">12</td><td>Repeated requests</td><td>Idempotent behaviour over five repeats</td><td class="c">Pass</td><td>&mdash;</td></tr>
+<tr><td class="c">13</td><td>Simultaneous entry and exit</td><td>Concurrent requests do not corrupt the state</td><td class="c">Pass</td><td>&mdash;</td></tr>
+<tr><td class="c">14</td><td>Database state after restart</td><td>Sessions survive a restart of the client</td><td class="c">Pass</td><td>&mdash;</td></tr>
+<tr><td class="c">15</td><td>WebSocket event generation</td><td>Events are published on the channel</td><td class="c">Pass</td><td>&mdash;</td></tr>
+</tbody>
+</table>
+
+<p>Twelve of the fifteen checks pass. The three failures are not three failures of the system, and it would be
+dishonest to present them as such or to hide them. Checks&nbsp;02 and&nbsp;05 require the OCR engine to produce
+candidates from a fixture image; EasyOCR is not installed in the verification environment and is absent from
+<span class="mono">requirements.txt</span>, so the pipeline returns <span class="mono">no_plate</span> at the reading
+stage and both assertions fail on the absence of a dependency rather than on a defect in the logic. Check&nbsp;07
+asserts that an unregistered plate is refused with status <span class="mono">unauthorized</span>; since walk-in
+admission was enabled in the final iteration, the same request now correctly returns
+<span class="mono">allocated</span>. The check encodes the policy of the previous phase and is stale, not the system.</p>
+
+<h2>12.3 Status of the complete suite</h2>
+
+<p>The complete repository suite contains fifty-seven tests across five files. On the same date and interpreter it
+reported <b>41 passed, 16 failed</b>. The sixteen failures fall into two groups and no third group: ten require
+EasyOCR, which is not installed, so every image-driven assertion receives <span class="mono">no_plate</span>; six
+encode the pre-walk-in policy, expecting an unregistered plate to be refused or a booking to be accepted for a lot that
+is already full, both of which the current build deliberately does otherwise. In other words, the code that can be
+exercised without the recognition engine is largely green, and the red is accounted for by one missing dependency and
+one policy change that the suite has not yet absorbed. Both are recorded as open defects (D-07 and D-11 in
+Table&nbsp;16) with the fix stated.</p>
+
+<p>This is reported as a result, not as an apology. A suite that fails for reasons the author can name, locate and fix
+is a working instrument; a suite that is green because the awkward tests were deleted is not. The correct engineering
+response is to pin the engine in the requirements file, re-run the image checks on the bench machine, and update the
+six policy assertions to the walk-in contract &mdash; work that is listed in Chapter&nbsp;15.</p>
+
+<h2>12.4 Interface checks</h2>
+
+<p>The interface was inspected in the browser at a width of 1400&nbsp;px with two sessions active, one booked bay and
+four free bays. Table&nbsp;15 records what was checked; the corresponding screens are Figs&nbsp;15&ndash;17. The client
+presents its operations surface under the brand <i>districtPARK</i> and names the facility the <i>AutoPark Smart
+Mobility Hub</i>; the project name used throughout this report is AutoPark.</p>
+
+<table>
+<caption><span class="mk">@@TB15@@</span>Table 15 : Manual and interface checks</caption>
+<thead><tr><th class="c" style="width:6%">#</th><th style="width:26%">Screen / element</th><th style="width:48%">Observation</th><th class="c" style="width:20%">Result</th></tr></thead>
+<tbody>
+<tr><td class="c">U1</td><td>Live Deck summary</td><td>Header reports 4 of 6 bays available with two sessions active; the count agrees with the summary route</td><td class="c">Pass</td></tr>
+<tr><td class="c">U2</td><td>Live Deck bay cards</td><td>A1 and A2 show their plates and OCCUPIED badges; free bays offer a pre-book action</td><td class="c">Pass</td></tr>
+<tr><td class="c">U3</td><td>Zone filter and search</td><td>Zone A, Zone B and All render the correct subset; search matches bay and plate</td><td class="c">Pass</td></tr>
+<tr><td class="c">U4</td><td>Operator facility plan</td><td>Zone A shows two reserved bays with plates and dwell start times; Zone B shows three free bays</td><td class="c">Pass</td></tr>
+<tr><td class="c">U5</td><td>Operator gate panels</td><td>Both gates report DOWN at 0&deg; and &ldquo;waiting for frames&rdquo;, which is correct when the nodes are powered off</td><td class="c">Pass</td></tr>
+<tr><td class="c">U6</td><td>Operator telemetry panel</td><td>Recognition accuracy, latency and bench tests display NOT MEASURED / NOT RUN rather than an estimate</td><td class="c">Pass</td></tr>
+<tr><td class="c">U7</td><td>Pre-booking page</td><td>Bay A3 selected; A1 and A2 shown HELD; summary binds BAY A3 and prices a 2-hour stay at &#8377;50</td><td class="c">Pass</td></tr>
+<tr><td class="c">U8</td><td>Connection indicator</td><td>Header reports LINKED, confirming the WebSocket channel is established</td><td class="c">Pass</td></tr>
+</tbody>
+</table>
+
+<figure class="w92">
+  <img src="../figures/fig-15.png" alt="Live Deck">
+  <figcaption><span class="mk">@@FG15@@</span>Fig. 15 : Live Deck showing derived availability for six bays</figcaption>
+</figure>
+
+<figure class="w92">
+  <img src="../figures/fig-17.png" alt="Pre-booking page">
+  <figcaption><span class="mk">@@FG16@@</span>Fig. 16 : Pre-booking page with the bay bound before arrival</figcaption>
+</figure>
+
+<figure class="w92">
+  <img src="../figures/fig-16.png" alt="Operator console">
+  <figcaption><span class="mk">@@FG17@@</span>Fig. 17 : Operator console with facility plan, gates and open sessions</figcaption>
+</figure>
+
+<p>Two observations from these screens are worth more than the tick marks. First, the operator plan labels the two
+active bays RESERVED rather than OCCUPIED, because the session was created through the simulator without a pre-booking
+and the plan renders the booking state; the bay is nonetheless held, as the open-session table beside it and the
+4-of-6 counter both show. The label is a presentation inconsistency, recorded as an observation rather than a defect
+because it does not affect the state. Second, the telemetry panel refusing to display an estimate is the interface
+expression of the honesty rule of Section&nbsp;10.5, and it is the reason the panel reads NOT MEASURED in a
+submission that has no bench numbers.</p>
+
+<h2>12.5 Defect log</h2>
+
+<p>Twelve defects were recorded during the project. Six were found during validation and fixed; six remain open and
+are stated here rather than quietly removed. The open items are the honest part of the table: three are packaging or
+configuration hygiene, one is a security default that must be changed before any real deployment, one is a stale test
+expectation, and one is a low-severity coupling in the firmware condition that is harmless with the present backend but
+would not be harmless in a different one.</p>
+
+<table>
+<caption><span class="mk">@@TB16@@</span>Table 16 : Defect log</caption>
+<thead><tr><th class="c" style="width:6%">ID</th><th style="width:24%">Defect</th><th style="width:20%">Impact</th><th style="width:26%">Root cause</th><th style="width:24%">Status</th></tr></thead>
+<tbody>
+<tr><td class="c">D-01</td><td>Booked bay not honoured at entry</td><td>Driver sent to the wrong bay</td><td>Allocator ignored the booking's slot identifier</td><td>Fixed &mdash; re-verified 31 Oct (B3 requested, B3 allocated)</td></tr>
+<tr><td class="c">D-02</td><td>Changed or cancelled booking left the old bay reserved</td><td>Phantom occupancy</td><td>Bay released on only some termination paths</td><td>Fixed &mdash; every terminal booking state now releases</td></tr>
+<tr><td class="c">D-03</td><td>Receipts page crashed on load</td><td>Page unusable</td><td>Route returns an object; page assumed an array</td><td>Fixed</td></tr>
+<tr><td class="c">D-04</td><td>Operator diagnostics panel empty</td><td>No evidence for refusals</td><td>Client called a route that does not exist</td><td>Fixed &mdash; corrected to the diagnostics route</td></tr>
+<tr><td class="c">D-05</td><td>Operator reset did nothing</td><td>Demonstration could not restart cleanly</td><td>Client called the wrong reset path</td><td>Fixed &mdash; verified by reset to 6 available</td></tr>
+<tr><td class="c">D-06</td><td>Active session rendered as a paid receipt</td><td>Misleading billing</td><td>Modal assumed every row was completed</td><td>Fixed</td></tr>
+<tr><td class="c">D-07</td><td>EasyOCR absent from <span class="mono">requirements.txt</span></td><td>Clean install cannot recognise plates; 10 tests blocked</td><td>Dependency added to the environment but not the manifest</td><td>Open &mdash; pin and re-run image checks</td></tr>
+<tr><td class="c">D-08</td><td>Ultralytics absent from <span class="mono">requirements.txt</span></td><td>Clean install has no detector</td><td>Same packaging gap</td><td>Open &mdash; pin the tested version</td></tr>
+<tr><td class="c">D-09</td><td>Stale database file at the repository root</td><td>Auth appears broken if a server is pointed at it</td><td>Leftover artefact committed early</td><td>Open &mdash; documented; delete on checkout</td></tr>
+<tr><td class="c">D-10</td><td>Development JWT secret used as a fallback</td><td>Token forgery if deployed unchanged</td><td>Convenience default</td><td>Open &mdash; set <span class="mono">JWT_SECRET</span> in the environment</td></tr>
+<tr><td class="c">D-11</td><td>Six tests encode the pre-walk-in policy</td><td>Red suite after a deliberate feature change</td><td>Expectations not updated with the policy</td><td>Open &mdash; update assertions to the walk-in contract</td></tr>
+<tr><td class="c">D-12</td><td>Firmware opens on <span class="mono">open_barrier || trigger_buzzer</span></td><td>A buzzer-only response would move the arm</td><td>Two intentions combined in one condition</td><td>Open, low severity &mdash; backend never sets the buzzer alone; separate the flags</td></tr>
+</tbody>
+</table>
+
+<h2>12.6 Diagnostic records from the bench</h2>
+
+<p>Two frames captured by the entry and exit nodes on 22&nbsp;October&nbsp;2026 were preserved with their full
+diagnostic payloads, and they are reproduced here because they are the only genuine recognition output available for
+this report. Both are single observations, not a benchmark. Both are instructive precisely because they failed.
+Table&nbsp;17 gives the recorded values, Fig.&nbsp;18 shows the entry frame and Fig.&nbsp;19 shows the plate crop and
+one of the preprocessed variants produced from it.</p>
+
+<table class="keep">
+<caption><span class="mk">@@TB17@@</span>Table 17 : Two diagnostic records captured on the bench</caption>
+<thead><tr><th style="width:30%">Field</th><th style="width:35%">Entry record, 11:32:07</th><th style="width:35%">Exit record, 11:41:28</th></tr></thead>
+<tbody>
+<tr><td>Record id</td><td class="mono">ENTRY_1792648927777</td><td class="mono">EXIT_1792649488042</td></tr>
+<tr><td>Sharpness (Laplacian variance)</td><td>17.38</td><td>16.78</td></tr>
+<tr><td>Brightness / contrast</td><td>80.28 / 30.11</td><td>70.11 / 26.51</td></tr>
+<tr><td>Quality grade</td><td>blurry</td><td>blurry</td></tr>
+<tr><td>Plate detected</td><td>yes, confidence 0.656</td><td>yes, confidence 0.497</td></tr>
+<tr><td>Plate box (x1, y1, x2, y2)</td><td>254, 291, 383, 327</td><td>208, 294, 367, 339</td></tr>
+<tr><td>Top candidate</td><td class="mono">7A03CO5G78</td><td class="mono">KAOJCD5678</td></tr>
+<tr><td>Top candidate confidence</td><td>0.148</td><td>0.496</td></tr>
+<tr><td>Candidate count</td><td>4 (one per variant)</td><td>4 (one per variant)</td></tr>
+<tr><td>Failure stage</td><td class="mono">camera_quality</td><td class="mono">camera_quality</td></tr>
+<tr><td>Reason recorded</td><td>Blurry frame, variance 17.4 &lt; 20</td><td>Blurry frame, variance 16.8 &lt; 20</td></tr>
+<tr><td>Timing: decode / detect</td><td>1.9 ms / 88.1 ms</td><td>2.9 ms / 95.6 ms</td></tr>
+<tr><td>Timing: OCR / total</td><td>2258.9 ms / 2352.7 ms</td><td>1399.2 ms / 1501.0 ms</td></tr>
+</tbody>
+</table>
+
+<figure class="w62">
+  <img src="../figures/fig-18.jpg" alt="Entry frame">
+  <figcaption><span class="mk">@@FG18@@</span>Fig. 18 : Frame captured by the entry node (640&times;480 JPEG)</figcaption>
+</figure>
+
+<figure class="w80">
+  <div style="display:flex;gap:14pt;align-items:flex-end;justify-content:center">
+    <div style="flex:1;text-align:center">
+      <div style="height:78pt;display:flex;align-items:center;justify-content:center">
+        <img src="../figures/fig-19a.png" alt="Plate crop" style="max-height:78pt;max-width:100%;width:auto">
+      </div>
+      <div class="small" style="margin-top:3pt">(a) plate crop saved by the pipeline (144&times;75 px)</div>
+    </div>
+    <div style="flex:1;text-align:center">
+      <div style="height:78pt;display:flex;align-items:center;justify-content:center">
+        <img src="../figures/fig-19b.png" alt="Preprocessed variant" style="max-height:78pt;max-width:100%;width:auto">
+      </div>
+      <div class="small" style="margin-top:3pt">(b) binarised variant used for OCR</div>
+    </div>
+  </div>
+  <figcaption><span class="mk">@@FG19@@</span>Fig. 19 : Plate crop and one binarised variant of the same frame</figcaption>
+</figure>
+
+<p>Three conclusions follow from these records, and all three are consistent with the design rather than convenient
+for it. First, the quality gate fired: both frames were graded blurry, and the pipeline reported
+<span class="mono">camera_quality</span> as the failure stage. The barrier would therefore have stayed closed, which is
+the fail-closed behaviour of Section&nbsp;5.5 observed on real evidence. Second, the detector still found a plate in
+both frames and the OCR engine still produced four candidates each, so the pipeline degrades in stages instead of
+collapsing: detection survived a frame that the gate had already rejected. Third, the candidate confidences were low
+(0.148 at entry, 0.496 at exit) and the top strings were visibly wrong &mdash; the entry reading
+<span class="mono">7A03CO5G78</span> is a plausible corruption of a plate seen at an angle through motion blur. A
+system that admitted on the best candidate would have admitted a vehicle on a 0.148 reading. This is the single most
+direct justification in the report for the refusal policy.</p>
+
+<p>The timings in the same records are the only latency figures that exist for this build. Total processing was
+2.35&nbsp;s at entry and 1.50&nbsp;s at exit, of which OCR accounted for 2.26&nbsp;s and 1.40&nbsp;s respectively. These
+are two observations on one machine with no vehicle moving and no network hop, so they cannot be presented as a
+latency distribution; they do show, however, where the cost sits, and it is the OCR stage rather than the detector,
+which is the single most useful fact for anyone continuing the work.</p>
+
+<h2>12.7 Live functional verification</h2>
+
+<p>Because the recognition-dependent tests could not run, the decision logic was verified directly through the HTTP
+interface on 31&nbsp;October&nbsp;2026, using the plate and confidence fields that the camera firmware sends. This is
+exactly the path a camera exercises once the plate string exists, so it isolates everything except the recognition
+stage. Table&nbsp;18 records the sequence and the observed responses.</p>
+
+<table>
+<caption><span class="mk">@@TB18@@</span>Table 18 : Verified functional results, 31 October 2026</caption>
+<thead><tr><th class="c" style="width:5%">#</th><th style="width:33%">Action</th><th style="width:40%">Response observed</th><th class="c" style="width:22%">Requirement checked</th></tr></thead>
+<tbody>
+<tr><td class="c">1</td><td>Reset the facility</td><td>6 available, 0 allocated, 0 sessions</td><td>Clean start</td></tr>
+<tr><td class="c">2</td><td>Pre-check-in KA05KK0403 for bay B3</td><td>PENDING_ARRIVAL, bay B3, expiry two hours ahead</td><td>Booking binds a bay</td></tr>
+<tr><td class="c">3</td><td>Entry of KA05KK0403</td><td><span class="mono">allocated</span>, slot B3, <span class="mono">open_barrier: true</span></td><td>O3 &mdash; booked bay honoured</td></tr>
+<tr><td class="c">4</td><td>Immediate repeat of the same entry</td><td><span class="mono">already_allocated</span>, slot B3, barrier false</td><td>Duplicate suppression</td></tr>
+<tr><td class="c">5</td><td>Entry of unbooked KA51MJ7788</td><td><span class="mono">allocated</span>, slot A1, barrier true</td><td>O2 &mdash; walk-in admission</td></tr>
+<tr><td class="c">6</td><td>Entry at confidence 0.40</td><td><span class="mono">ignored</span>, no slot, barrier false</td><td>Confidence floor</td></tr>
+<tr><td class="c">7</td><td>Exit of KA05KK0403</td><td><span class="mono">released</span>, slot B3, 1 min, &#8377;30, barrier true</td><td>O7 &mdash; tariff and release</td></tr>
+<tr><td class="c">8</td><td>Exit of unknown KA99ZZ9999</td><td><span class="mono">no_active_session</span>, no amount, barrier false</td><td>Refusal on exit</td></tr>
+<tr><td class="c">9</td><td>Summary after the exit</td><td>5 available, 1 allocated &mdash; consistent with the sessions</td><td>O4 &mdash; derived occupancy</td></tr>
+<tr><td class="c">10</td><td>Six successive walk-in entries, then a seventh</td><td>A1, A2, A3, B1, B2, B3 allocated in order; seventh returns <span class="mono">parking_full</span></td><td>Capacity and refusal</td></tr>
+<tr><td class="c">11</td><td>Tariff function at the boundaries</td><td>60&nbsp;min &#8377;30; 61&nbsp;min &#8377;50; 120&nbsp;min &#8377;50; 121&nbsp;min &#8377;70</td><td>Tariff monotonicity</td></tr>
+</tbody>
+</table>
+
+<p>All eleven observations match the specification. Three are worth comment. The booked bay was returned exactly as
+booked, which closes D-01 with fresh evidence rather than a historical claim. The walk-in entry took A1 while B3 was
+held by the booking, demonstrating that the walk-in path draws only from bays that are genuinely free. And the seventh
+vehicle received <span class="mono">parking_full</span> rather than an error, which matters because the driver's next
+action depends on the distinction between &ldquo;the lot is full&rdquo; and &ldquo;the system is broken&rdquo;.</p>
+
+<h2>12.8 Engineering metrics</h2>
+
+<p>Table&nbsp;19 lists the quantities that can be counted exactly from the repository rather than estimated. They are
+included because they are the only performance-adjacent numbers in the report that are reproducible by a reader with a
+checkout of the code.</p>
+
+<table>
+<caption><span class="mk">@@TB19@@</span>Table 19 : Engineering metrics measured from the repository</caption>
+<thead><tr><th style="width:44%">Metric</th><th class="c" style="width:16%">Value</th><th style="width:40%">How it was obtained</th></tr></thead>
+<tbody>
+<tr><td>Backend Python modules</td><td class="c">13</td><td>Files in <span class="mono">backend/app/</span></td></tr>
+<tr><td>Backend source lines</td><td class="c">4,226</td><td><span class="mono">wc -l</span> over the modules</td></tr>
+<tr><td>Frontend TypeScript lines</td><td class="c">5,304</td><td><span class="mono">wc -l</span> over <span class="mono">frontend/src</span></td></tr>
+<tr><td>Firmware lines</td><td class="c">699</td><td>Two sketches, 352 and 347 lines</td></tr>
+<tr><td>REST routes / WebSocket routes</td><td class="c">22 / 1</td><td>Route decorators in <span class="mono">main.py</span></td></tr>
+<tr><td>Database tables</td><td class="c">5</td><td>ORM classes in <span class="mono">models.py</span></td></tr>
+<tr><td>Client pages / components</td><td class="c">8 / 15</td><td><span class="mono">page.tsx</span> and component files</td></tr>
+<tr><td>Automated tests / passing</td><td class="c">57 / 41</td><td><span class="mono">pytest -q</span>, 31 Oct 2026</td></tr>
+<tr><td>Runtime dependencies declared</td><td class="c">13</td><td><span class="mono">requirements.txt</span></td></tr>
+<tr><td>Recognition engines declared</td><td class="c">0 of 2</td><td>Neither EasyOCR nor Ultralytics is listed</td></tr>
+<tr><td>Bays / gate cameras / bay sensors</td><td class="c">6 / 2 / 0</td><td>Slot configuration and hardware list</td></tr>
+<tr><td>Entry processing time (single record)</td><td class="c">2.35&nbsp;s</td><td>Diagnostic record of 22 Oct 2026</td></tr>
+<tr><td>Exit processing time (single record)</td><td class="c">1.50&nbsp;s</td><td>Diagnostic record of 22 Oct 2026</td></tr>
+</tbody>
+</table>
+
+<h2>12.9 Analytical result: sensing cost is constant</h2>
+
+<p>The quantitative claim of the project does not depend on a measurement and can therefore be stated exactly. Let
+<i>n</i> be the number of bays in the facility. A per-bay design requires <i>n</i> sensing devices, <i>n</i> mounting
+points and <i>n</i> power or data drops; its sensing cost is a linear function of <i>n</i>. AutoPark requires two
+cameras at the boundary of the lot, whatever <i>n</i> is; its sensing cost is constant with respect to <i>n</i>. For
+the pilot, <i>n</i> = 6, so the conventional design needs six sensors and this design needs two cameras; the marginal
+sensing cost of a seventh bay is one sensor plus its installation in the conventional design and zero here. The number
+is small, but the shape of the function is the contribution, and it is exact rather than estimated.</p>
+
+<p>The same argument explains the failure mode honestly. A per-bay sensor measures each bay continuously and therefore
+survives an unreadable plate at the gate. A gate-only design derives every bay from two observations per vehicle
+movement, so a missed exit observation leaves a bay occupied until a human releases it. The project's claim is not
+that derived occupancy is as robust as measured occupancy; it is that the difference in robustness is bounded, visible
+and recoverable, while the difference in cost grows without bound.</p>
+
+<figure class="w45">
+  <div class="photo-slot" style="width:100%;height:230pt">
+    Photograph of the bench rig &mdash; entry node, SG90 barrier and lane.<br>
+    To be inserted after the H1&ndash;H3 bench runs; not available at submission.
+  </div>
+  <figcaption><span class="mk">@@FG20@@</span>Fig. 20 : Bench rig &mdash; entry node, servo barrier and lane</figcaption>
+</figure>
+
+<h2>12.10 Comparison with related approaches</h2>
+
+<p>Table&nbsp;20 compares the design with the three alternatives discussed in Chapter&nbsp;4. The comparison is
+qualitative because the published systems differ in scale, currency and evaluation method, and a numeric comparison
+across those differences would be false precision.</p>
+
+<table>
+<caption><span class="mk">@@TB20@@</span>Table 20 : Comparison of AutoPark with related approaches</caption>
+<thead><tr><th style="width:20%">Criterion</th><th style="width:20%">Per-bay sensors [1]</th><th style="width:20%">Overhead vision</th><th style="width:20%">Manual / ticket gate</th><th style="width:20%">AutoPark</th></tr></thead>
+<tbody>
+<tr><td>Sensing devices</td><td><i>n</i> per lot</td><td>1 per covered row</td><td>None</td><td>2 per lot</td></tr>
+<tr><td>Marginal cost of a new bay</td><td>One device and install</td><td>Depends on geometry</td><td>None</td><td>Zero</td></tr>
+<tr><td>Availability source</td><td>Direct measurement</td><td>Image classification</td><td>Ticket count</td><td>Derived from events</td></tr>
+<tr><td>Access control</td><td>Separate gate system</td><td>Separate gate system</td><td>Attendant or ticket</td><td>Integrated, plate-based</td></tr>
+<tr><td>Audit of decisions</td><td>Rare</td><td>Rare</td><td>Paper slip</td><td>Per-decision event row</td></tr>
+<tr><td>Behaviour when evidence is weak</td><td>Not applicable</td><td>Misclassification</td><td>Attendant judgement</td><td>Refuse and alert</td></tr>
+<tr><td>Main failure mode</td><td>Device or cable fault</td><td>Occlusion</td><td>Human error</td><td>Unreadable exit plate</td></tr>
+<tr><td>Privacy exposure inside lot</td><td>Presence only</td><td>Continuous video</td><td>None</td><td>Gate frames only</td></tr>
+</tbody>
+</table>
+
+<h2>12.11 Threats to validity</h2>
+
+<p>Table&nbsp;21 states the threats to the validity of these results and what was done about each. Three are
+limitations of the evidence rather than of the system, and they are the reason several claims in this report are
+phrased as properties of the implementation rather than as measured outcomes.</p>
+
+<table>
+<caption><span class="mk">@@TB21@@</span>Table 21 : Threats to validity and their mitigation</caption>
+<thead><tr><th style="width:26%">Threat</th><th style="width:38%">Effect on the results</th><th style="width:36%">Mitigation or disclosure</th></tr></thead>
+<tbody>
+<tr><td>Recognition engine absent from the verification environment</td><td>Image-driven checks cannot pass; accuracy is unmeasured</td><td>Declared as D-07; logic verified through the non-image path (Table 18)</td></tr>
+<tr><td>Form-field submissions bypass OCR</td><td>Table 18 validates decisions, not recognition</td><td>Stated explicitly; the diagnostic records are used for the recognition evidence</td></tr>
+<tr><td>Two diagnostic records only</td><td>Cannot support accuracy claims</td><td>Reported as single observations; no accuracy figure is inferred</td></tr>
+<tr><td>Tests share one database</td><td>Order dependence in the suite</td><td>Fixtures reset state; remaining coupling declared as D-11</td></tr>
+<tr><td>Laboratory lighting and one plate style</td><td>Recognition results would not generalise</td><td>Per-condition protocol defined in 10.5, not yet executed</td></tr>
+<tr><td>No field deployment</td><td>No claim about a real lot</td><td>Scope statement in Chapter 3; pilot framed as a bench prototype</td></tr>
+<tr><td>Single machine timing</td><td>Latency is not representative</td><td>Quoted as two observations with the machine stated</td></tr>
+</tbody>
+</table>
+
+<h2>12.12 Measurements still outstanding</h2>
+
+<p>The bench protocol of Section&nbsp;10.5 is expressed as seven checks, numbered H1&ndash;H7 to match the telemetry
+panel of the operator console, which reports them as not run. They are listed here so that the next batch has an
+unambiguous starting point rather than a paragraph of intentions.</p>
+
+<ol>
+<li><b>H1 &mdash; Servo sweep and hold.</b> Measure the time from the command to 90&deg;, the hold interval and the
+return, for twenty cycles, and record the spread.</li>
+<li><b>H2 &mdash; Barrier follows the contract.</b> Drive the endpoint with each status in Table&nbsp;10 and confirm the
+arm moves only for <span class="mono">allocated</span> and <span class="mono">released</span>.</li>
+<li><b>H3 &mdash; Fail-closed on loss of backend.</b> Stop the service with the node running and confirm no sweep
+occurs over a five-minute window.</li>
+<li><b>H4 &mdash; End-to-end latency.</b> Thirty runs from POST to JSON, reported as p50 and p95 with the hardware
+stated.</li>
+<li><b>H5 &mdash; Recognition rate.</b> At least 200 frames over five plates and four conditions, with plate detection
+rate and exact recognition rate per condition.</li>
+<li><b>H6 &mdash; Decision error.</b> False admits and false rejects under the refusal policy, counted from the ground
+truth of H5.</li>
+<li><b>H7 &mdash; Soak.</b> Two hundred entry and exit cycles with no divergence between the session table and the
+displayed occupancy.</li>
+</ol>
+
+<h2>12.13 Justification of the results</h2>
+
+<p>Three claims are supported by what has been shown. First, the substitution of two gate cameras for six bay sensors
+holds as an engineering design: occupancy is derived correctly across reset, booking, booked entry, duplicate entry,
+walk-in entry, exit, refusal and full-lot scenarios, and the derived value agrees with the session table in every case
+observed. Second, the refusal policy is real rather than aspirational: the confidence floor, the duplicate suppression,
+the ambiguity rule and the fail-closed barrier were each exercised, and the two preserved diagnostic records show the
+policy acting on genuinely poor evidence. Third, the audit trail is complete for the paths that were run &mdash; every
+decision in Table&nbsp;18 produced a session or a refusal with its evidence attached.</p>
+
+<p>One claim is explicitly not supported, and is not made: that the system recognises plates at any particular rate or
+within any particular time in normal operation. Two bench records and a blocked test suite are not an accuracy study.
+The protocol exists, the instrument exists, and the numbers are outstanding; the report says so in the abstract, in
+this chapter and in the conclusion, because a project about refusing under uncertainty should not be vague about its own
+uncertainty.</p>
+</div>
+
+<!-- ============================ CHAPTER 13 ============================ -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 13</span><span class="mk">@@C13@@</span>Applications, Advantages and Drawbacks</h1>
+
+<h2>13.1 Applications</h2>
+
+<p>AutoPark is aimed at facilities that are large enough to need access control and availability information but too
+small for a per-bay sensing installation. Table&nbsp;22 lists the settings where the design fits, with the property of
+each setting that makes the fit good and the constraint that a deployment would have to respect.</p>
+
+<table>
+<caption><span class="mk">@@TB22@@</span>Table 22 : Application areas of the system</caption>
+<thead><tr><th style="width:24%">Setting</th><th style="width:38%">Why the design fits</th><th style="width:38%">Constraint to respect</th></tr></thead>
+<tbody>
+<tr><td>Department or campus lot</td><td>Fixed population, known plates, one or two gates, no attendant at night</td><td>Registration must be kept current; walk-in policy must be decided</td></tr>
+<tr><td>Apartment complex</td><td>Resident and visitor mix maps naturally to booking plus walk-in; two gates is typical</td><td>Visitor plates change daily; a registration desk is needed</td></tr>
+<tr><td>Hospital staff parking</td><td>Shift patterns suit pre-booking; queueing at the gate is expensive</td><td>Exit must never block an emergency vehicle; manual release is mandatory</td></tr>
+<tr><td>Small commercial car park</td><td>Replaces a ticket machine and an attendant with a plate-based record</td><td>Payment integration is out of scope and must be added</td></tr>
+<tr><td>Event and temporary parking</td><td>The lot is bounded and short-lived; camera mounting is quick</td><td>Ground surface and lighting vary; H1&ndash;H7 must be run on site</td></tr>
+<tr><td>Fleet or staff depot</td><td>Derived occupancy plus a per-vehicle history is the operational requirement</td><td>Multiple entries per vehicle per day must be supported in reporting</td></tr>
+<tr><td>Institutional audit of parking use</td><td>Every decision is recorded with evidence, which supports utilisation studies</td><td>Data retention and privacy policy must be defined</td></tr>
+</tbody>
+</table>
+
+<h2>13.2 Advantages</h2>
+
+<p><b>Constant sensing cost.</b> Two cameras serve any number of bays, so the sensing layer does not grow when the lot
+is extended. For a facility that expects to add bays, this is the decisive property.</p>
+
+<p><b>Minimal retrofit.</b> Nothing is installed inside the lot. There is no trenching, no cabling to each space and no
+battery replacement per bay, which matters most where the surface cannot be disturbed.</p>
+
+<p><b>Auditable decisions.</b> Every admission and every refusal writes a row with the plate, the candidates, the
+confidence and the failure stage. A disputed charge or a disputed refusal can be examined rather than argued about.</p>
+
+<p><b>Fail-closed by construction.</b> The barrier opens only on an explicit backend boolean, so a network fault, a
+server crash or a malformed response leaves the gate closed. The safe direction of failure is a design property, not a
+configuration option.</p>
+
+<p><b>Two service classes in one policy.</b> Pre-booked and walk-in vehicles share one allocator and one audit trail.
+The facility can promise bays to advance bookings without turning away everyone else, which is the realistic
+operating compromise for a campus.</p>
+
+<p><b>Demonstrable without hardware.</b> The simulator drives the same endpoints as the cameras, so the system can be
+shown, regression-tested and marked on a laptop when the rig is unavailable &mdash; a practical advantage in a
+seventh-semester submission with a shared laboratory.</p>
+
+<p><b>Small, understandable codebase.</b> Twenty-two routes, five tables and two short sketches. A reviewer can read the
+whole decision path in an afternoon, which is why the invariants of Section&nbsp;5.8 can be asserted with confidence.</p>
+
+<h2>13.3 Drawbacks</h2>
+
+<p><b>Dependence on plate-read quality.</b> The system's accuracy is the recognition pipeline's accuracy. A dirty,
+damaged, non-standard or badly lit plate becomes a refusal, and the failure is at the boundary of the facility, which
+is the worst place for a queue to form.</p>
+
+<p><b>One recovery path for the exit.</b> A vehicle whose plate is never read leaves a bay occupied until an operator
+releases it. A per-bay sensor does not have this failure mode. The design states the cost instead of hiding it.</p>
+
+<p><b>No per-bay truth.</b> A vehicle that is admitted and then parks across two bays, or in the wrong bay, is not
+detected. The system knows how many vehicles are inside, not where each one physically is; the bay number is a
+booking, not an observation.</p>
+
+<p><b>Walk-in policy is a social decision.</b> Automatically admitting unbooked vehicles keeps the lot usable but means
+a booking can be honoured only while free bays remain. Turning the policy off protects reservations but rejects
+spontaneous arrivals. Neither setting is technically correct; both must be chosen by the operator.</p>
+
+<p><b>Billing is time-based only.</b> Duration is measured from entry to exit; there is no notion of a reserved bay
+being wasted, no penalty for overstaying a booking window, and no payment. The tariff is a single function of
+minutes.</p>
+
+<p><b>Single host, single database.</b> The API, the recognition models, the database and the frontend all run on one
+laptop. There is no replication, no TLS and no rate limiting, so the deployment is a prototype rather than a product;
+the security defaults are listed as open defects in Table&nbsp;16.</p>
+
+<p><b>Recognition cost is concentrated.</b> OCR dominates the processing time in the two records that exist. On a
+single host serving two gates this is acceptable; on a larger lot it would require a queue, a second worker or a
+cheaper recognition strategy, none of which is implemented.</p>
+
+<h2>13.4 When not to use this design</h2>
+
+<p>The design is the wrong choice in three situations, and saying so is part of understanding it. It is wrong where
+occupancy must be known per bay rather than in aggregate &mdash; a facility that sells a specific numbered space to a
+monthly subscriber needs to know that the space is empty, not merely that a vehicle is inside. It is wrong where
+plates are not reliably readable, such as a site with heavy mud, temporary plates or no front plate convention. And it
+is wrong where the exit must never require a human, because the manual release path is the designed remedy for an
+unreadable exit and a design that cannot afford any human intervention must add a second observation method, such as
+an exit loop detector, which brings back a per-lane sensor.</p>
+</div>
+
+<!-- ============================ CHAPTER 14 ============================ -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 14</span><span class="mk">@@C14@@</span>Outcome of the Project and Reflection Notes</h1>
+
+<h2>14.1 Outcome against the objectives</h2>
+
+<p>Table&nbsp;23 restates each objective of Chapter&nbsp;2, gives the evidence that exists for it and states the outcome
+in one of three terms: <i>met</i> where the behaviour was exercised and observed, <i>met in part</i> where the
+implementation and contract exist but a physical measurement or a policy-dependent check is outstanding, and <i>not
+verified</i> where nothing in this submission supports the claim. No objective is graded as met on the strength of
+intention.</p>
+
+<table>
+<caption><span class="mk">@@TB23@@</span>Table 23 : Objectives achieved and evidence</caption>
+<thead><tr><th class="c" style="width:6%">#</th><th style="width:26%">Objective</th><th style="width:46%">Evidence in this report</th><th class="c" style="width:22%">Outcome</th></tr></thead>
+<tbody>
+<tr><td class="c">O1</td><td>Detect and read plates from gate frames</td><td>Pipeline implemented and instrumented; detection and four-variant OCR observed in the two diagnostic records (Table 17); image tests blocked by the missing engine</td><td class="c">Met in part</td></tr>
+<tr><td class="c">O2</td><td>Authorise booked and walk-in vehicles</td><td>Booked entry to B3, walk-in entry to A1 and full-lot refusal all observed (Table 18)</td><td class="c">Met</td></tr>
+<tr><td class="c">O3</td><td>Honour the bay chosen at booking</td><td>B3 requested, B3 allocated (Table 18, row 3); defect D-01 closed</td><td class="c">Met</td></tr>
+<tr><td class="c">O4</td><td>Derive occupancy from gate events</td><td>Summary consistent with the session table after every transition; walk-in and exit counters agree</td><td class="c">Met</td></tr>
+<tr><td class="c">O5</td><td>Control a physical barrier automatically</td><td>Contract, truth table and firmware reviewed; barrier flags observed in every response; physical sweep not measured</td><td class="c">Met in part</td></tr>
+<tr><td class="c">O6</td><td>Provide real-time visibility</td><td>WebSocket channel connected and events published (check 15); single client observed LINKED; three-client simultaneity not tested</td><td class="c">Met in part</td></tr>
+<tr><td class="c">O7</td><td>Produce auditable billing</td><td>Exit billed &#8377;30 for one minute; boundary values 60/61/120/121 checked (Table 18, row 11); receipt rendered</td><td class="c">Met</td></tr>
+<tr><td class="c">O8</td><td>Demonstrate without hardware</td><td>Every result in this chapter was produced through the simulator path</td><td class="c">Met</td></tr>
+</tbody>
+</table>
+
+<p>The distribution is the honest summary of the project: four objectives met, three met in part, none unverified. The
+three partial outcomes share one cause, which is the absence of a completed bench run and a pinned recognition
+environment. That is a scheduling and packaging failure rather than a design failure, and both parts of it are
+fixable without touching the architecture.</p>
+
+<h2>14.2 What the project achieved</h2>
+
+<p>The project delivered a working six-bay parking system in which two cameras at the boundary of the lot replace a
+sensor in every bay, and in which the state of every bay is a query over the session table rather than a measurement.
+It delivered the policy that makes that substitution defensible: refuse when the evidence does not resolve to one
+vehicle, record why, and leave the barrier closed. It delivered the surrounding system that turns a recognition
+demonstration into a parking facility &mdash; registration, booking, pass, allocation, exit, tariff, receipt, operator
+console and audit trail. And it delivered a verification instrument: a fifty-seven test suite whose failures are
+understood, a live functional record of eleven observations, and two genuine diagnostic records that show the
+recognition stage failing safely.</p>
+
+<p>The most useful thing the project produced is not a feature but a boundary: the report can state exactly what is
+known, what is measured, what is implemented but unmeasured, and what is deliberately out of scope. That boundary is
+what a following batch needs in order to continue rather than restart.</p>
+
+<h2>14.3 Reflection notes</h2>
+
+<p><b>On the order of work.</b> The single best decision of the project was to design the refusal path before tuning
+the recognition pipeline. It meant that a poor read was always a defined outcome, and it meant that the difficult
+questions &mdash; what counts as ambiguous, what happens when two bookings are one edit apart, what the barrier does
+when the server is silent &mdash; were answered in the design rather than discovered during the demonstration. The
+single worst decision was to leave the dependency manifest and the test expectations until the end. Both were small
+tasks that grew into the two most visible open defects, and both would have cost an hour had they been done when the
+policy changed.</p>
+
+<p><b>On measurement.</b> The team assumed that a working pipeline would produce numbers almost automatically. It did
+not. A frame that processes successfully tells you nothing about the recognition rate, and a single timing observation
+is not a latency distribution. The measurement protocol of Section&nbsp;10.5 was written late, and writing it revealed
+that several claims the team had been making informally could not be supported at all. The lesson is that the protocol
+belongs in the design phase, next to the acceptance criteria, because it changes what gets logged.</p>
+
+<p><b>On the hardware.</b> Almost every bench problem was electrical rather than logical. The servo resetting the board,
+the programmer not entering flash mode, the camera initialising intermittently: none of these were software faults, and
+all of them cost more time than the corresponding firmware changes. The capacitor across the servo rail and the
+separate 5&nbsp;V supply were the two changes that made the rig stable, and they are recorded first in the
+troubleshooting guide for that reason.</p>
+
+<p><b>On working with derived state.</b> The team began with the intuition that deriving occupancy was obviously
+cheaper, and finished with a precise understanding of what it costs. A derived state is exactly as good as the
+observation that drives it, it fails in one specific and predictable way, and the remedy for that failure must be
+designed, staffed and audited. That is a more useful conclusion than the original intuition, and it is the one the
+report defends.</p>
+
+<p><b>On honesty in a submission.</b> There is a strong pull, at the end of a project, to describe what was intended as
+what was achieved. Resisting it produced a report with visible gaps &mdash; a placeholder figure, a suite that is not
+green, two numbers where a distribution was wanted. It also produced a document in which every positive statement can
+be traced to an observation, which is worth more to an examiner and to the next team than a uniform claim of
+success.</p>
+
+<h2>14.4 What the team would do differently</h2>
+
+<ol>
+<li>Pin every runtime dependency, including the recognition engines, in the manifest on the first day, and verify a
+clean install in a fresh environment before writing any feature code.</li>
+<li>Write the measurement harness together with the pipeline, so that every stage logs what the protocol needs rather
+than what was convenient at the time.</li>
+<li>Keep the test suite aligned with policy changes in the same commit, and treat a red suite after a deliberate
+feature change as part of the change rather than as debt.</li>
+<li>Bench-test the electrical subsystem before integrating it, in isolation, with a dummy load, so that power faults are
+not mistaken for software faults during integration.</li>
+<li>Take the bench photographs and the diagnostic records as the work proceeds, not at the end; the missing rig
+photograph in this report is a direct consequence of leaving it late.</li>
+</ol>
+</div>
+
+<!-- ============================ CHAPTER 15 ============================ -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 15</span><span class="mk">@@C15@@</span>Conclusions and Future Works that Could be Done</h1>
+
+<h2>15.1 Conclusions</h2>
+
+<p>The project set out to test one proposition: that the sensing hardware of a smart parking facility need not scale
+with the number of bays. The result is AutoPark, a six-bay system in which two ESP32-CAM nodes at the entry and exit
+gates replace a sensor in every space, and in which the occupancy of a bay is a derived property of the database rather
+than a measurement taken inside the lot. The proposition holds. The system books a bay, admits the booked vehicle to
+that bay, admits an unbooked vehicle to a free bay, refuses a vehicle whose evidence is insufficient, releases the bay
+and bills the stay, and records the reason for every decision, including the refusals.</p>
+
+<p>Five conclusions are supported by the work reported here.</p>
+
+<p><b>Gate-only occupancy inference is workable at the scale of a department lot.</b> Across reset, booking, booked
+entry, duplicate entry, walk-in entry, exit, refusal and full-lot scenarios, the derived availability agreed with the
+session table in every observation. The state machine has one writer, the invariant is expressible in a sentence, and
+the whole decision path is short enough to review.</p>
+
+<p><b>The cost of the substitution is a specific, recoverable failure mode, not a loss of accuracy.</b> A missed exit
+leaves a bay occupied until an operator releases it. That is the price of not measuring each bay, it is predictable,
+and it has a designed remedy. Stating the price is what makes the design defensible; a report that claimed derived
+occupancy to be as robust as measured occupancy would be wrong.</p>
+
+<p><b>Refusal must be designed before recognition is tuned.</b> The two preserved diagnostic records show a detector
+finding a plate and an OCR engine producing four candidates with a best confidence of 0.148. A best-guess policy would
+have admitted a vehicle on that evidence. The confidence floor, the ambiguity rule and the duplicate suppression are
+what convert an unreliable reading into a reliable decision, and they are the part of the system that a following batch
+should protect.</p>
+
+<p><b>Integration is the contribution, not the detector.</b> The detector and the OCR engine are standard components.
+What makes the system a parking facility is the chain from a frame to a session, a bay, a bill and an audit row, with a
+timer, a policy and an operator path around it. Most prototypes in this area stop one step short of that chain, and the
+step they stop at is where the engineering difficulty actually lies.</p>
+
+<p><b>Honest reporting is a technical position.</b> Two of the fifteen end-to-end checks and sixteen of the fifty-seven
+repository tests are red, EasyOCR is missing from the manifest, and the bench measurements have not been taken. The
+report states all of this, names the cause of each failure and separates the implemented-but-unmeasured from the
+measured. A reader can therefore tell which claims are observations and which are intentions, which is the only basis
+on which the work can be extended.</p>
+
+<h2>15.2 Limitations restated</h2>
+
+<p>The system is a bench prototype. It has not been deployed in a live lot, its recognition rate and latency
+distribution have not been measured, its barrier has not been timed, and its security posture is that of a LAN
+demonstration rather than a product. It bills time but does not take payment; it manages one lot with no lot
+identifier; it cannot detect a vehicle parked in the wrong bay; and it depends on one host. These are not incidental
+gaps to be mentioned in passing &mdash; they define the boundary within which the conclusions above are true.</p>
+
+<h2>15.3 Future work</h2>
+
+<p>The work that follows divides naturally into four tracks, ordered by what unblocks the most.</p>
+
+<p><b>Close the measurement gap.</b> Run H1&ndash;H7 as specified, on the bench and then on site. This is first because
+every other judgement about the system &mdash; whether the recognition pipeline is good enough, whether OCR latency is
+acceptable at a gate, whether the barrier timing is safe &mdash; depends on numbers that do not yet exist.</p>
+
+<p><b>Repair the packaging and the suite.</b> Pin EasyOCR and Ultralytics at tested versions in
+<span class="mono">requirements.txt</span>, verify a clean install in a fresh virtual environment, update the six
+pre-walk-in assertions to the current policy, and bring the suite back to green. Remove the stale root database and
+require <span class="mono">JWT_SECRET</span> to be set explicitly, failing at startup if it is absent.</p>
+
+<p><b>Strengthen the exit path.</b> Add a second observation method at the exit &mdash; an inductive loop, a push
+button with operator confirmation, or a short-stay QR fallback &mdash; so that an unreadable plate does not require a
+human. Then measure how much of the manual release load it removes.</p>
+
+<p><b>Extend the model.</b> Add a lot identifier to the schema to support multiple facilities; add overstay handling and
+a reservation no-show policy to the booking state machine; add a payment interface behind the receipt; and add a
+retention policy for frames and detection events so that the audit trail does not become a privacy liability.</p>
+
+<p>Two further extensions are worth naming because they follow directly from the design rather than from a wish list.
+The first is a confidence-calibrated threshold: the current 0.75 acceptance and 0.72 match thresholds are design
+choices, and with a measured dataset they could be replaced by values derived from the false-admit cost the operator is
+willing to bear. The second is a second camera angle at each gate, which would not change the sensing cost argument
+(two per gate is still constant in the number of bays) but would materially improve the read rate on angled plates.</p>
+
+<h2>15.4 Month-wise workflow</h2>
+
+<p>Table&nbsp;24 records the workflow followed across the two semesters of the project. Phase&nbsp;1 (sixth semester)
+established the problem, the survey, the architecture and the recognition pipeline; Phase&nbsp;2 (seventh semester)
+completed the authorisation policy, the operator console, the billing path, the verification suite, the hardware rig
+and this report.</p>
+
+<table>
+<caption><span class="mk">@@TB24@@</span>Table 24 : Month-wise work flow of the project</caption>
+<thead><tr><th style="width:14%">Month</th><th style="width:16%">Phase</th><th style="width:46%">Work carried out</th><th style="width:24%">Outcome</th></tr></thead>
+<tbody>
+<tr><td>January 2026</td><td>Phase 1 &mdash; problem</td><td>Field observation of campus and commercial parking; literature search; scope discussion with the guide</td><td>Problem statement and scope boundary</td></tr>
+<tr><td>February 2026</td><td>Phase 1 &mdash; survey</td><td>Survey of occupancy sensing, ANPR pipelines and edge vision; gap analysis</td><td>Literature survey and identified gaps</td></tr>
+<tr><td>March 2026</td><td>Phase 1 &mdash; design</td><td>Layer selection, state ownership, schema design, API surface, decision policy</td><td>Architecture and database schema</td></tr>
+<tr><td>April 2026</td><td>Phase 1 &mdash; recognition</td><td>Frame collection, plate detector training, preprocessing variants, OCR scoring, burst voting</td><td>Working recognition pipeline</td></tr>
+<tr><td>May 2026</td><td>Phase 1 &mdash; closure</td><td>Phase&nbsp;1 report, demonstration of the pipeline, review comments</td><td>Phase&nbsp;1 submission</td></tr>
+<tr><td>August 2026</td><td>Phase 2 &mdash; authorisation</td><td>Booking model, matching rules, allocator, duplicate suppression, walk-in policy</td><td>Allocator with explicit decision statuses</td></tr>
+<tr><td>September 2026</td><td>Phase 2 &mdash; application</td><td>Billing, receipts, operator console, design tokens, WebSocket events</td><td>Complete web client</td></tr>
+<tr><td>October 2026</td><td>Phase 2 &mdash; hardware and verification</td><td>Node assembly, servo calibration, power topology, firmware; automated suite; interface checks; diagnostic capture</td><td>Two gate nodes, 57-test suite, two diagnostic records</td></tr>
+<tr><td>November 2026</td><td>Phase 2 &mdash; documentation</td><td>Results, defect log, measurement protocol, report, demonstration script</td><td>This report and the Phase&nbsp;2 submission</td></tr>
+</tbody>
+</table>
+
+<h2>15.5 Closing remark</h2>
+
+<p>AutoPark is a small system that asks a large question of itself: can a parking facility know its own occupancy
+without measuring every space? The answer this project gives is yes, provided the facility is willing to observe its
+boundary carefully, to refuse when it is not sure, and to accept that one failure mode now requires a person. Those are
+not weaknesses of the design; they are its terms, and the report has tried to state them as plainly as the results.</p>
+</div>

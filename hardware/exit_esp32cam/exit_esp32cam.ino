@@ -1,8 +1,8 @@
 #include "esp_camera.h"
-#include <WiFi.h>
-#include <WiFiClient.h>
 #include <ArduinoJson.h>
 #include <ESP32Servo.h>
+#include <WiFi.h>
+#include <WiFiClient.h>
 
 // =====================================================
 // AUTOPARK EXIT ESP32-CAM FIRMWARE (SERVO BOOM BARRIER)
@@ -10,79 +10,83 @@
 
 // =====================================================
 // 1. WI-FI CREDENTIALS
-// Fill these in for your own network before flashing. Never commit real credentials.
+// Fill these in for your own network before flashing. Never commit real
+// credentials.
 // =====================================================
-const char* WIFI_SSID     = "YOUR_WIFI_SSID";
-const char* WIFI_PASSWORD = "YOUR_WIFI_PASSWORD";
+const char *WIFI_SSID = "ANAND N";
+const char *WIFI_PASSWORD = "8971878807";
 
 // =====================================================
 // 2. BACKEND SERVER CONFIGURATION
 // Laptop running FastAPI on port 8000
 // =====================================================
-const char* SERVER_HOST   = "192.168.1.3";
+const char *SERVER_HOST = "192.168.0.104";
 const uint16_t SERVER_PORT = 8000;
-const char* SERVER_PATH   = "/api/detection/exit";
+const char *SERVER_PATH = "/api/detection/exit";
 
 // Frame capture interval (milliseconds)
 const unsigned long CAPTURE_INTERVAL_MS = 5000;
 
 // =====================================================
 // 3. EXIT SERVO BOOM BARRIER PIN
-// Connect Servo signal (Orange/Yellow wire) to GPIO 12
+// Note: Servos are now centrally handled by the NodeMCU ESP8266 controller!
+// If servos were directly on ESP32-CAM: pin 12. Set to -1 when using ESP8266.
 // =====================================================
-#define SERVO_PIN 12
+#define SERVO_PIN -1
 
 Servo exitBarrierServo;
 
 void openExitBoomBarrier() {
   Serial.println("[BOOM BARRIER] 🚗 LIFTING EXIT BARRIER (90°)...");
   exitBarrierServo.write(90); // Lift barrier arm
-  delay(5000); // Hold open for 5 seconds for car to exit safely
+  delay(5000);                // Hold open for 5 seconds for car to exit safely
   Serial.println("[BOOM BARRIER] 🛑 LOWERING EXIT BARRIER (0°)...");
-  exitBarrierServo.write(0);  // Lower barrier arm
+  exitBarrierServo.write(0); // Lower barrier arm
 }
 
 // =====================================================
 // 4. AI-THINKER ESP32-CAM PINOUT
 // =====================================================
-#define PWDN_GPIO_NUM     32
-#define RESET_GPIO_NUM    -1
-#define XCLK_GPIO_NUM      0
-#define SIOD_GPIO_NUM     26
-#define SIOC_GPIO_NUM     27
+#define PWDN_GPIO_NUM 32
+#define RESET_GPIO_NUM -1
+#define XCLK_GPIO_NUM 0
+#define SIOD_GPIO_NUM 26
+#define SIOC_GPIO_NUM 27
 
-#define Y9_GPIO_NUM       35
-#define Y8_GPIO_NUM       34
-#define Y7_GPIO_NUM       39
-#define Y6_GPIO_NUM       36
-#define Y5_GPIO_NUM       21
-#define Y4_GPIO_NUM       19
-#define Y3_GPIO_NUM       18
-#define Y2_GPIO_NUM        5
+#define Y9_GPIO_NUM 35
+#define Y8_GPIO_NUM 34
+#define Y7_GPIO_NUM 39
+#define Y6_GPIO_NUM 36
+#define Y5_GPIO_NUM 21
+#define Y4_GPIO_NUM 19
+#define Y3_GPIO_NUM 18
+#define Y2_GPIO_NUM 5
 
-#define VSYNC_GPIO_NUM    25
-#define HREF_GPIO_NUM     23
-#define PCLK_GPIO_NUM     22
+#define VSYNC_GPIO_NUM 25
+#define HREF_GPIO_NUM 23
+#define PCLK_GPIO_NUM 22
 
 unsigned long lastCaptureTime = 0;
 
 // =====================================================
 // CAMERA SETUP
+// Board: "ESP32 Dev Module" | PSRAM: "Disabled"
+// Your board has faulty PSRAM — all allocation uses internal DRAM.
 // =====================================================
 void setupCamera() {
   camera_config_t config;
+  memset(&config, 0, sizeof(camera_config_t));
+
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer   = LEDC_TIMER_0;
-
-  config.pin_d0 = Y2_GPIO_NUM;
-  config.pin_d1 = Y3_GPIO_NUM;
-  config.pin_d2 = Y4_GPIO_NUM;
-  config.pin_d3 = Y5_GPIO_NUM;
-  config.pin_d4 = Y6_GPIO_NUM;
-  config.pin_d5 = Y7_GPIO_NUM;
-  config.pin_d6 = Y8_GPIO_NUM;
-  config.pin_d7 = Y9_GPIO_NUM;
-
+  config.pin_d0       = Y2_GPIO_NUM;
+  config.pin_d1       = Y3_GPIO_NUM;
+  config.pin_d2       = Y4_GPIO_NUM;
+  config.pin_d3       = Y5_GPIO_NUM;
+  config.pin_d4       = Y6_GPIO_NUM;
+  config.pin_d5       = Y7_GPIO_NUM;
+  config.pin_d6       = Y8_GPIO_NUM;
+  config.pin_d7       = Y9_GPIO_NUM;
   config.pin_xclk     = XCLK_GPIO_NUM;
   config.pin_pclk     = PCLK_GPIO_NUM;
   config.pin_vsync    = VSYNC_GPIO_NUM;
@@ -91,40 +95,59 @@ void setupCamera() {
   config.pin_sccb_scl = SIOC_GPIO_NUM;
   config.pin_pwdn     = PWDN_GPIO_NUM;
   config.pin_reset    = RESET_GPIO_NUM;
-
   config.xclk_freq_hz = 20000000;
   config.pixel_format = PIXFORMAT_JPEG;
+  config.fb_count     = 1;
+  config.grab_mode    = CAMERA_GRAB_WHEN_EMPTY;
+  config.fb_location  = CAMERA_FB_IN_DRAM;
 
-  if (psramFound()) {
-    Serial.println("[CAMERA] PSRAM detected! Setting VGA (640x480) for clear license plate recognition.");
-    config.frame_size   = FRAMESIZE_VGA;  // 640 x 480
-    config.jpeg_quality = 10;            // High quality JPEG
-    config.fb_count     = 2;
-    config.grab_mode    = CAMERA_GRAB_LATEST;
-    config.fb_location  = CAMERA_FB_IN_PSRAM;
-  } else {
-    Serial.println("[CAMERA] PSRAM NOT detected! Setting QVGA (320x240).");
-    config.frame_size   = FRAMESIZE_QVGA; // 320 x 240
-    config.jpeg_quality = 12;
-    config.fb_count     = 1;
-    config.grab_mode    = CAMERA_GRAB_WHEN_EMPTY;
-    config.fb_location  = CAMERA_FB_IN_DRAM;
+  const framesize_t sizes[]    = { FRAMESIZE_VGA, FRAMESIZE_HVGA, FRAMESIZE_QVGA, FRAMESIZE_QQVGA };
+  const char       *labels[]   = { "VGA 640x480",  "HVGA 480x320", "QVGA 320x240", "QQVGA 160x120" };
+  const int         qualities[] = { 10,             10,              12,              12 };
+  const int         numSizes   = 4;
+  bool cameraOk = false;
+
+  Serial.printf("[CAMERA] Free DMA: %u bytes | Largest block: %u bytes\n",
+                heap_caps_get_free_size(MALLOC_CAP_DMA),
+                heap_caps_get_largest_free_block(MALLOC_CAP_DMA));
+
+  for (int i = 0; i < numSizes && !cameraOk; i++) {
+    config.frame_size   = sizes[i];
+    config.jpeg_quality = qualities[i];
+
+    Serial.printf("[CAMERA] Attempt %d: %s (DRAM, 1 buf)...\n", i + 1, labels[i]);
+    esp_err_t err = esp_camera_init(&config);
+
+    if (err == ESP_OK) {
+      Serial.printf("[CAMERA] >> %s init SUCCESS!\n", labels[i]);
+      cameraOk = true;
+    } else {
+      Serial.printf("[CAMERA] >> %s failed (0x%x)\n", labels[i], err);
+      esp_camera_deinit();
+      delay(100);
+    }
   }
 
-  esp_err_t err = esp_camera_init(&config);
-  if (err != ESP_OK) {
-    Serial.printf("[CAMERA ERROR] Init failed with error 0x%x\n", err);
+  if (!cameraOk) {
+    Serial.println("[CAMERA ERROR] ALL resolutions failed! Check ribbon cable or replace board.");
     return;
   }
 
-  // Adjust camera sensor orientation
   sensor_t *sensor = esp_camera_sensor_get();
   if (sensor != NULL) {
-    sensor->set_vflip(sensor, 1);
-    sensor->set_hmirror(sensor, 0);
+    if (sensor->id.PID == OV3660_PID) {
+      Serial.println("[CAMERA] OV3660 sensor detected.");
+      sensor->set_vflip(sensor, 1);
+      sensor->set_brightness(sensor, 1);
+      sensor->set_saturation(sensor, -1);
+    } else {
+      Serial.println("[CAMERA] OV2640 sensor detected.");
+      sensor->set_vflip(sensor, 1);
+      sensor->set_hmirror(sensor, 0);
+    }
   }
 
-  Serial.println("[CAMERA] Exit camera initialized successfully.");
+  Serial.println("[CAMERA] Exit camera initialized and ready.");
 }
 
 // =====================================================
@@ -135,13 +158,18 @@ bool captureAndSendExitFrame() {
   Serial.println("---------------------------------------------");
   Serial.println("[EXIT CAMERA] Capturing image...");
 
-  camera_fb_t* fb = esp_camera_fb_get();
+  camera_fb_t *fb = esp_camera_fb_get();
   if (!fb) {
-    Serial.println("[EXIT CAMERA ERROR] Frame capture failed!");
+    delay(100);
+    fb = esp_camera_fb_get();
+  }
+  if (!fb) {
+    Serial.println("[EXIT CAMERA ERROR] Frame capture failed! Check ribbon cable, USB power, or enable PSRAM in Tools.");
     return false;
   }
 
-  Serial.printf("[EXIT CAMERA] Image captured: %u bytes (%dx%d)\n", (unsigned int)fb->len, fb->width, fb->height);
+  Serial.printf("[EXIT CAMERA] Image captured: %u bytes (%dx%d)\n",
+                (unsigned int)fb->len, fb->width, fb->height);
 
   // Check Wi-Fi connection
   if (WiFi.status() != WL_CONNECTED) {
@@ -154,25 +182,26 @@ bool captureAndSendExitFrame() {
   WiFiClient client;
   client.setTimeout(15000); // 15 seconds bounded connection timeout
 
-  Serial.printf("[HTTP] Connecting to http://%s:%u%s ...\n", SERVER_HOST, SERVER_PORT, SERVER_PATH);
+  Serial.printf("[HTTP] Connecting to http://%s:%u%s ...\n", SERVER_HOST,
+                SERVER_PORT, SERVER_PATH);
   if (!client.connect(SERVER_HOST, SERVER_PORT)) {
-    Serial.println("[HTTP ERROR] Backend connection failed! Verify laptop IP and port 8000.");
+    Serial.println("[HTTP ERROR] Backend connection failed! Verify laptop IP "
+                   "and port 8000.");
     esp_camera_fb_return(fb);
     return false;
   }
 
   // Multipart form data boundaries
-  const char* boundary = "AutoParkBoundaryExit99";
-  const char* ending   = "\r\n--AutoParkBoundaryExit99--\r\n";
+  const char *boundary = "AutoParkBoundaryExit99";
+  const char *ending = "\r\n--AutoParkBoundaryExit99--\r\n";
 
   char partHeader[256];
   int partHeaderLen = snprintf(
-    partHeader, sizeof(partHeader),
-    "--%s\r\n"
-    "Content-Disposition: form-data; name=\"file\"; filename=\"exit.jpg\"\r\n"
-    "Content-Type: image/jpeg\r\n\r\n",
-    boundary
-  );
+      partHeader, sizeof(partHeader),
+      "--%s\r\n"
+      "Content-Disposition: form-data; name=\"file\"; filename=\"exit.jpg\"\r\n"
+      "Content-Type: image/jpeg\r\n\r\n",
+      boundary);
 
   size_t endingLen = strlen(ending);
   size_t contentLength = (size_t)partHeaderLen + fb->len + endingLen;
@@ -186,18 +215,20 @@ bool captureAndSendExitFrame() {
   client.println();
 
   // Stream multipart body directly from frame buffer (0 heap allocation!)
-  client.write((const uint8_t*)partHeader, partHeaderLen);
+  client.write((const uint8_t *)partHeader, partHeaderLen);
   client.write(fb->buf, fb->len);
-  client.write((const uint8_t*)ending, endingLen);
+  client.write((const uint8_t *)ending, endingLen);
 
   // Free camera frame buffer immediately
   esp_camera_fb_return(fb);
 
-  Serial.println("[HTTP] Frame streamed to backend. Waiting for ANPR evaluation...");
+  Serial.println(
+      "[HTTP] Frame streamed to backend. Waiting for ANPR evaluation...");
 
   // Read HTTP Response Status Line
   unsigned long startWait = millis();
-  while (!client.available() && client.connected() && (millis() - startWait < 15000)) {
+  while (!client.available() && client.connected() &&
+         (millis() - startWait < 15000)) {
     delay(20);
   }
 
@@ -216,13 +247,15 @@ bool captureAndSendExitFrame() {
   while (client.connected() || client.available()) {
     String headerLine = client.readStringUntil('\n');
     headerLine.trim();
-    if (headerLine.length() == 0) break; // Blank line marks end of headers
+    if (headerLine.length() == 0)
+      break; // Blank line marks end of headers
   }
 
   // Read JSON response body (bounded, no heap lockup)
   String responseBody = "";
   unsigned long bodyStart = millis();
-  while ((client.connected() || client.available()) && (millis() - bodyStart < 4000)) {
+  while ((client.connected() || client.available()) &&
+         (millis() - bodyStart < 4000)) {
     while (client.available()) {
       char c = client.read();
       responseBody += c;
@@ -243,11 +276,11 @@ bool captureAndSendExitFrame() {
   DeserializationError err = deserializeJson(doc, responseBody);
 
   if (!err) {
-    const char* status       = doc["status"] | "unknown";
-    const char* slot         = doc["slot"] | "none";
-    const char* plate        = doc["plate_number"] | "none";
-    float confidence         = doc["confidence"] | 0.0;
-    const char* message      = doc["message"] | "";
+    const char *status = doc["status"] | "unknown";
+    const char *slot = doc["slot"] | "none";
+    const char *plate = doc["plate_number"] | "none";
+    float confidence = doc["confidence"] | 0.0;
+    const char *message = doc["message"] | "";
 
     Serial.println();
     Serial.println("=========================================");
@@ -257,17 +290,19 @@ bool captureAndSendExitFrame() {
     Serial.printf("Released Slot:  %s\n", slot);
     Serial.printf("Plate Number:   %s\n", plate);
     Serial.printf("Confidence:     %.1f%%\n", confidence * 100.0);
-    bool open_barrier        = doc["open_barrier"] | false;
+    bool open_barrier = doc["open_barrier"] | false;
 
     // Trigger physical Boom Barrier Servo upon confirmed slot release
     if (open_barrier || strcmp(status, "released") == 0) {
-      Serial.printf("[BOOM BARRIER] EXIT CONFIRMED FOR SLOT %s — LIFTING GATE\n", slot);
+      Serial.printf(
+          "[BOOM BARRIER] EXIT CONFIRMED FOR SLOT %s — LIFTING GATE\n", slot);
       openExitBoomBarrier();
     } else {
       Serial.println("[BOOM BARRIER] EXIT GATE LOCKED (0°)");
     }
   } else {
-    Serial.printf("[JSON ERROR] Parse failed (%s). Raw response: %s\n", err.c_str(), responseBody.c_str());
+    Serial.printf("[JSON ERROR] Parse failed (%s). Raw response: %s\n",
+                  err.c_str(), responseBody.c_str());
   }
 
   return true;
@@ -282,17 +317,13 @@ void setup() {
 
   Serial.println();
   Serial.println("==================================================");
-  Serial.println("   AUTOPARK EXIT GATE ESP32-CAM (SERVO BARRIER)");
+  Serial.println("   AUTOPARK EXIT GATE ESP32-CAM NODE");
   Serial.println("==================================================");
 
-  // Initialize Servo Motor for Exit Boom Barrier (0 deg = Closed/Down)
-  if (SERVO_PIN >= 0) {
-    exitBarrierServo.attach(SERVO_PIN);
-    exitBarrierServo.write(0);
-    Serial.println("[SERVO] Exit Boom Barrier calibrated to 0° (Closed)");
-  }
+  // 1. INITIALIZE CAMERA FIRST (CRITICAL: reserves DMA frame buffer before WiFi takes RAM!)
+  setupCamera();
 
-  // Connect to Wi-Fi
+  // 2. CONNECT TO WI-FI AFTER CAMERA HAS SECURED ITS MEMORY
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
   Serial.printf("[WIFI] Connecting to '%s'", WIFI_SSID);
@@ -312,9 +343,6 @@ void setup() {
   } else {
     Serial.println("[WIFI ERROR] Connection failed! Check SSID and password.");
   }
-
-  // Initialize camera module
-  setupCamera();
 
   Serial.println("[SYSTEM] Exit camera ready. Capturing every 5 seconds.");
   lastCaptureTime = millis();
@@ -340,7 +368,8 @@ void loop() {
   // Continuous capture cycle approximately every 5 seconds
   if (millis() - lastCaptureTime >= CAPTURE_INTERVAL_MS) {
     captureAndSendExitFrame();
-    lastCaptureTime = millis(); // Reset 5s timer AFTER capture & transmission finishes
+    lastCaptureTime =
+        millis(); // Reset 5s timer AFTER capture & transmission finishes
   }
 
   delay(20);

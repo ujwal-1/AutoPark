@@ -1,0 +1,215 @@
+/* AutoPark project report — VTU / RRCE sample format.
+   A4, single sided, 1" margins, Book Antiqua 10 pt, 1.5 line spacing. */
+
+@page {
+  size: A4;
+  margin: 25.4mm 25.4mm 22mm 25.4mm;
+}
+
+html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+body {
+  font-family: "Book Antiqua", Palatino, "Palatino Linotype", "URW Palladio L", serif;
+  font-size: 10pt;
+  line-height: 1.5;
+  color: #000;
+  margin: 0;
+  text-align: justify;
+  hyphens: none;
+}
+
+p { margin: 0 0 6pt 0; text-indent: 0; }
+p + p { text-indent: 0; }
+
+h1.chapter {
+  font-size: 18pt;
+  line-height: 1.25;
+  font-weight: bold;
+  margin: 0 0 14pt 0;
+  text-align: left;
+  page-break-after: avoid;
+}
+
+h1.chapter .num {
+  display: block;
+  font-size: 12pt;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: normal;
+  margin-bottom: 4pt;
+}
+
+h2 {
+  font-size: 16pt;
+  line-height: 1.3;
+  font-weight: bold;
+  margin: 16pt 0 8pt 0;
+  text-align: left;
+  page-break-after: avoid;
+}
+
+h3 {
+  font-size: 11pt;
+  line-height: 1.4;
+  font-weight: bold;
+  margin: 12pt 0 5pt 0;
+  text-align: left;
+  page-break-after: avoid;
+}
+
+.chapter { page-break-before: always; }
+.front { page-break-before: always; }
+.nobreak { page-break-inside: avoid; }
+
+ul, ol { margin: 0 0 8pt 0; padding-left: 18pt; }
+li { margin-bottom: 3pt; }
+
+table.keep { page-break-inside: avoid; }
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 8.4pt;
+  line-height: 1.28;
+  margin: 4pt 0 12pt 0;
+  page-break-inside: auto;
+}
+table.t10 { font-size: 9pt; }
+th, td {
+  border: 0.5pt solid #000;
+  padding: 3pt 4pt;
+  vertical-align: top;
+  text-align: left;
+}
+th { font-weight: bold; background: #EDEDED; }
+td.c, th.c { text-align: center; }
+td.r, th.r { text-align: right; }
+tr { page-break-inside: avoid; }
+table caption {
+  caption-side: bottom;
+  font-size: 10pt;
+  line-height: 1.4;
+  text-align: center;
+  padding-top: 4pt;
+  caption-side: bottom;
+}
+
+figure {
+  margin: 8pt 0 12pt 0;
+  text-align: center;
+  page-break-inside: avoid;
+}
+figure img { max-width: 100%; }
+figure.w92 img { width: 92%; }
+figure.w90 img { width: 90%; }
+figure.w80 img { width: 80%; }
+figure.w70 img { width: 70%; }
+figure.w62 img { width: 62%; }
+figure.w60 img { width: 60%; }
+figure.w50 img { width: 50%; }
+figure.w45 img { width: 45%; }
+figure.h68 img { height: 6.8in; width: auto; }
+figcaption {
+  font-size: 10pt;
+  line-height: 1.4;
+  margin-top: 5pt;
+  text-align: center;
+}
+
+code, .mono { font-family: "Courier New", monospace; font-size: 9pt; }
+
+pre {
+  font-family: "Courier New", monospace;
+  font-size: 8pt;
+  line-height: 1.2;
+  border: 0.5pt solid #000;
+  padding: 6pt 8pt;
+  margin: 6pt 0 10pt 0;
+  white-space: pre-wrap;
+  background: #FAFAFA;
+}
+
+.center { text-align: center; }
+.small { font-size: 8.5pt; }
+.b { font-weight: bold; }
+.i { font-style: italic; }
+.caps { text-transform: uppercase; letter-spacing: 0.08em; }
+
+/* --- title page ------------------------------------------------------- */
+.titlepage { text-align: center; line-height: 1.35; }
+.titlepage .uni { font-size: 13pt; font-weight: bold; letter-spacing: 0.02em; }
+.titlepage .addr { font-size: 9pt; }
+.titlepage .rule { border-top: 1pt solid #000; margin: 10pt 0; }
+.titlepage .kind { font-size: 11pt; letter-spacing: 0.18em; }
+.titlepage h1 {
+  font-size: 22pt;
+  margin: 6pt 0 2pt 0;
+  line-height: 1.2;
+  letter-spacing: 0.01em;
+}
+.titlepage .sub { font-size: 11.5pt; font-style: italic; margin: 4pt 0 10pt 0; }
+.titlepage .meta { font-size: 10pt; }
+.titlepage .students { font-size: 10pt; line-height: 1.5; margin: 6pt 0; }
+.titlepage .students .n { display: inline-block; width: 145pt; text-align: left; }
+.titlepage .foot { font-size: 9.5pt; }
+
+/* --- front matter headings ------------------------------------------- */
+.fm-head {
+  font-size: 18pt;
+  font-weight: bold;
+  text-align: center;
+  margin: 0 0 16pt 0;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+
+/* --- table of contents ------------------------------------------------ */
+.toc { font-size: 10pt; line-height: 1.5; }
+.toc .row { display: flex; align-items: baseline; }
+.toc .row .t { }
+.toc .row .lead { flex: 1; border-bottom: 0.5pt dotted #444; margin: 0 3pt 2pt 3pt; }
+.toc .row .p { font-variant-numeric: tabular-nums; }
+.toc .l1 { font-weight: bold; margin-top: 2pt; }
+.toc .l2 { padding-left: 16pt; }
+
+/* --- lists of figures / tables --------------------------------------- */
+.lof { font-size: 9.5pt; line-height: 1.5; }
+.lof .row { display: flex; align-items: baseline; }
+.lof .row .lead { flex: 1; border-bottom: 0.5pt dotted #444; margin: 0 3pt 2pt 3pt; }
+
+/* --- invisible page markers ------------------------------------------ */
+.mk { font-size: 1pt; color: #ffffff; line-height: 0; letter-spacing: 0; text-transform: none; }
+
+/* --- misc blocks ------------------------------------------------------ */
+.box {
+  border: 0.5pt solid #000;
+  padding: 7pt 9pt;
+  margin: 8pt 0 10pt 0;
+  page-break-inside: avoid;
+}
+.box .h { font-weight: bold; margin-bottom: 3pt; }
+.keyword { font-style: italic; }
+.sig { margin-top: 26pt; }
+.sig .line { border-top: 0.5pt solid #000; width: 190pt; padding-top: 2pt; font-size: 9pt; }
+.two-col { display: flex; gap: 22pt; justify-content: space-between; }
+.two-col > div { flex: 1; }
+.photo-slot {
+  border: 1pt dashed #555;
+  height: 190pt;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  font-size: 9pt;
+  color: #333;
+  margin: 6pt 0;
+}
+
+/* --- references ------------------------------------------------------- */
+.refs p {
+  font-size: 9pt;
+  line-height: 1.4;
+  margin: 0 0 4pt 0;
+  padding-left: 20pt;
+  text-indent: -20pt;
+  text-align: left;
+}

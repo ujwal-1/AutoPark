@@ -12,13 +12,15 @@ lan_ip() { ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/n
 
 stop_all() {
   # match our own processes by working dir / port, not by name
-  for port in 8000 3000; do
+  for port in 8000 3000 3001; do
     pids=$(lsof -ti:$port -sTCP:LISTEN 2>/dev/null)
     [ -n "$pids" ] && kill $pids 2>/dev/null
   done
   pkill -f "uvicorn app.main:app" 2>/dev/null
+  pkill -f "next dev" 2>/dev/null
+  pkill -f "next-server" 2>/dev/null
   sleep 1
-  for port in 8000 3000; do
+  for port in 8000 3000 3001; do
     pids=$(lsof -ti:$port -sTCP:LISTEN 2>/dev/null)
     [ -n "$pids" ] && kill -9 $pids 2>/dev/null
   done
@@ -39,11 +41,11 @@ start_all() {
   echo "starting backend..."
   ( cd "$ROOT/backend" && nohup "$PY" -m uvicorn app.main:app \
       --host 0.0.0.0 --port 8000 --log-level info \
-      > "$RUN/backend.log" 2>&1 & echo $! > "$RUN/backend.pid" )
+      < /dev/null > "$RUN/backend.log" 2>&1 & echo $! > "$RUN/backend.pid" )
 
   echo "starting frontend..."
-  ( cd "$ROOT/frontend" && nohup npm run dev \
-      > "$RUN/frontend.log" 2>&1 & echo $! > "$RUN/frontend.pid" )
+  ( cd "$ROOT/frontend" && CI=1 nohup ./node_modules/.bin/next dev -H 0.0.0.0 -p 3000 \
+      < /dev/null > "$RUN/frontend.log" 2>&1 & echo $! > "$RUN/frontend.pid" )
 
   wait_for http://localhost:8000/health "backend " || true
   wait_for http://localhost:3000/ "frontend" || true

@@ -18,6 +18,7 @@ dist/
 .antigravity-sync/
 *.log
 backend/debug_captures/
+docs/report/.build/
 *.db
 *.db-journal
 *.db-wal

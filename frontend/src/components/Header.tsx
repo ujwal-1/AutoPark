@@ -50,7 +50,7 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
             <div className="text-left">
               <p className="font-bold text-white leading-tight">
-                {currentUser.full_name || currentUser.username}
+                {currentUser.full_name || currentUser.username || currentUser.email || 'User'}
               </p>
               <p className="text-[10px] text-gray-400 capitalize">
                 {currentUser.role}

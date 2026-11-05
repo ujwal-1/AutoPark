@@ -1,0 +1,373 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>AutoPark — UG BE Project Report</title>
+<link rel="stylesheet" href="report.css">
+</head>
+<body>
+
+<!-- ============================ TITLE PAGE ============================ -->
+<div class="titlepage"><span class="mk">@@TITLE@@</span>
+  <div class="uni">VISVESVARAYA TECHNOLOGICAL UNIVERSITY</div>
+  <div class="addr">Jnanasangama, Macche, Santibastwada Road, Belagavi&ndash;590018, Karnataka</div>
+  <div class="rule"></div>
+  <div class="kind">A</div>
+  <div class="kind" style="font-size:13pt;font-weight:bold;letter-spacing:0.12em;margin-top:4pt">UG BE PROJECT REPORT</div>
+  <div style="font-size:10pt;margin-top:6pt">(PROJECT COURSE CODE : BIC685)</div>
+  <div style="font-size:10pt;letter-spacing:0.06em;margin-top:2pt">SEVENTH SEMESTER BE UG &ndash; PHASE II</div>
+  <div style="font-size:10pt;margin-top:10pt">on</div>
+
+  <h1>AutoPark</h1>
+  <div class="sub">A Camera-Based Smart Parking System with Automated Number Plate<br>Recognition and Micro-Actuated Boom Barriers</div>
+
+  <div class="meta" style="margin-top:10pt">Submitted in partial fulfillment of the requirement for the degree of</div>
+  <div class="meta b" style="margin-top:4pt">Bachelor of Engineering</div>
+  <div class="meta">in</div>
+  <div class="meta b">Computer Science &amp; Engineering &ndash; CSE (IC)</div>
+
+  <div class="meta" style="margin-top:10pt">by</div>
+  <div class="students">
+    <div><span class="n">USN : 1RR23IC___</span>[Student Name 1]</div>
+    <div><span class="n">USN : 1RR23IC___</span>[Student Name 2]</div>
+    <div><span class="n">USN : 1RR23IC___</span>[Student Name 3]</div>
+    <div><span class="n">USN : 1RR23IC___</span>[Student Name 4]</div>
+  </div>
+
+  <div class="meta" style="margin-top:8pt">Under the guidance of</div>
+  <div class="meta b" style="margin-top:3pt">[Name of the Project Guide]</div>
+  <div class="meta">Project Guide</div>
+  <div class="meta">Professor, Dept. of CSE (IC)</div>
+  <div class="meta">Rajarajeswari College of Engineering, Bangalore, Karnataka</div>
+
+  <div class="rule" style="margin-top:12pt"></div>
+  <div class="foot b">Department of Computer Science &amp; Engineering</div>
+  <div class="foot">(IoT, Cyber Security with Blockchain Technology)</div>
+  <div class="foot">(An Autonomous College affiliated to VTU Belgaum, accredited by NBA &amp; NAAC)</div>
+  <div class="foot"># 14, Ramohalli Cross, Mysore Road, Kumbalgodu Post,</div>
+  <div class="foot">Bengaluru&ndash;560074, Karnataka, India</div>
+  <div class="foot b" style="margin-top:6pt">2026&ndash;27</div>
+  <div class="foot">November 2026</div>
+</div>
+
+<!-- ============================ CERTIFICATE =========================== -->
+<div class="front">
+  <div class="fm-head"><span class="mk">@@CERT@@</span>Certificate</div>
+
+  <p>Certified that the major project work, Phase&ndash;2 (BIC685) entitled <b>&ldquo;AutoPark: A Camera-Based Smart
+  Parking System with Automated Number Plate Recognition and Micro-Actuated Boom Barriers&rdquo;</b> carried out by
+  [Student Name 1] (USN&nbsp;1RR23IC___), [Student Name 2] (USN&nbsp;1RR23IC___), [Student Name 3]
+  (USN&nbsp;1RR23IC___) and [Student Name 4] (USN&nbsp;1RR23IC___), are bonafide students of the CSE Dept. (IC) of
+  Rajarajeswari College of Engineering, Bangalore, Karnataka, India in partial fulfillment for the award of Bachelor
+  of Engineering in Computer Science &amp; Engineering (IC) of the Visvesvaraya Technological University, Belagavi,
+  Karnataka for the VII Semester autonomous course during the academic year 2026&ndash;27 and is being guided by
+  [Name of the Project Guide] (Project Guide). It is certified that all corrections / suggestions indicated for the
+  major project work of the Phase&ndash;2 have been incorporated in the 7th sem project report submitted to the CSE
+  (IC) department through the Project Coordinator &amp; HoD.</p>
+
+  <p>This Phase&ndash;2 project report has been approved as it satisfies the academic requirement in respect of project
+  work of the said 7th sem prescribed for the said degree for the VTU batch.</p>
+
+  <div style="margin-top:22pt">
+    <div style="margin-bottom:16pt">
+      <div style="border-top:0.5pt solid #000;width:230pt;padding-top:2pt;font-size:9pt">Project Guide Sign</div>
+      <div style="font-size:9pt">Name : [Name of the Project Guide]</div>
+    </div>
+    <div style="margin-bottom:16pt">
+      <div style="border-top:0.5pt solid #000;width:230pt;padding-top:2pt;font-size:9pt">Project Coordinator Sign</div>
+      <div style="font-size:9pt">Name : [Name of the Project Coordinator]</div>
+    </div>
+    <div style="margin-bottom:16pt">
+      <div style="border-top:0.5pt solid #000;width:230pt;padding-top:2pt;font-size:9pt">HoD Sign</div>
+      <div style="font-size:9pt">Name : [Name of the Head of the Department]</div>
+    </div>
+    <div style="margin-bottom:16pt">
+      <div style="border-top:0.5pt solid #000;width:230pt;padding-top:2pt;font-size:9pt">Principal Sign</div>
+      <div style="font-size:9pt">Name : Dr. R. Balakrishna</div>
+    </div>
+  </div>
+
+  <div style="margin-top:10pt;font-size:9.5pt">
+    <div class="b">External VII Sem Major-Project Viva-Voce (SEE)</div>
+    <p style="margin:6pt 0 4pt 0">Name of the project examiners with date :</p>
+    <div>1 : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Int)&nbsp; Signature : _____________________</div>
+    <div style="margin-top:8pt">2 : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(Ext)&nbsp; Signature : _____________________</div>
+  </div>
+</div>
+
+<!-- ============================ DECLARATION =========================== -->
+<div class="front">
+  <div class="fm-head"><span class="mk">@@DECL@@</span>Students Declaration</div>
+
+  <p>Certified that the 7th Sem Phase&ndash;2 project work entitled <b>&ldquo;AutoPark: A Camera-Based Smart Parking
+  System with Automated Number Plate Recognition and Micro-Actuated Boom Barriers&rdquo;</b> with the course code
+  BIC685 (6 Credits, 100 Marks&ndash;CIE, 100 Marks&ndash;SEE) is a bonafide work that was carried out by ourselves in
+  partial fulfillment for the award of degree of Bachelor of Engineering in Computer Science &amp; Engg (IC) of the
+  Rajarajeswari College of Engineering, affiliated to the Visvesvaraya Technological University, Belagavi, Karnataka
+  during the academic year 2026&ndash;27 for the VII Semester Autonomous Course. We, the students of the 7th sem
+  Phase&ndash;2 project group / batch no. B&ndash;__ do hereby declare that the entire main-project has been done on
+  our own and we have not copied or duplicated any other&rsquo;s work. The results embedded in this project report has
+  not been submitted elsewhere for the award of any type of degree and is fully genuine and novel work.</p>
+
+  <div style="margin-top:56pt">
+    <div class="two-col" style="margin-bottom:26pt">
+      <div>
+        <div style="border-top:0.5pt solid #000;width:170pt;padding-top:3pt;font-size:9.5pt">[Student Name 1]</div>
+        <div style="font-size:9.5pt">Sign</div>
+        <div style="font-size:9.5pt">USN : 1RR23IC___</div>
+      </div>
+      <div>
+        <div style="border-top:0.5pt solid #000;width:170pt;padding-top:3pt;font-size:9.5pt">[Student Name 2]</div>
+        <div style="font-size:9.5pt">Sign</div>
+        <div style="font-size:9.5pt">USN : 1RR23IC___</div>
+      </div>
+    </div>
+    <div class="two-col">
+      <div>
+        <div style="border-top:0.5pt solid #000;width:170pt;padding-top:3pt;font-size:9.5pt">[Student Name 3]</div>
+        <div style="font-size:9.5pt">Sign</div>
+        <div style="font-size:9.5pt">USN : 1RR23IC___</div>
+      </div>
+      <div>
+        <div style="border-top:0.5pt solid #000;width:170pt;padding-top:3pt;font-size:9.5pt">[Student Name 4]</div>
+        <div style="font-size:9.5pt">Sign</div>
+        <div style="font-size:9.5pt">USN : 1RR23IC___</div>
+      </div>
+    </div>
+  </div>
+
+  <div style="margin-top:46pt;font-size:10pt">
+    <div>Date : &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;/11/2026</div>
+    <div>Place : Bengaluru &ndash; 74</div>
+  </div>
+</div>
+
+<!-- ========================== ACKNOWLEDGEMENT ========================= -->
+<div class="front">
+  <div class="fm-head"><span class="mk">@@ACK@@</span>Acknowledgement</div>
+
+  <p>We sincerely thank all the people who have directly or indirectly helped us in the successful completion of the
+  7th Sem CSE (IC) Under-Graduate BE project work. We thank all the following members whole-heartedly for all sorts of
+  help rendered to us.</p>
+
+  <ol style="margin-top:10pt;line-height:1.6">
+    <li>Chairman RRGI &ndash; Dr. A. C. Shanmugam</li>
+    <li>Vice Chairman RRGI &ndash; Dr. A. C. S. Arun Kumar</li>
+    <li>Executive Director RRGI &ndash; Dr. S. Vijayanand</li>
+    <li>Special Officer RRGI &ndash; Dr. S. Jeyabalan</li>
+    <li>Principal &ndash; Dr. R. Balakrishna</li>
+    <li>Registrar &ndash; Prof. Savitha</li>
+    <li>Rector &ndash; Dr. Mariappan</li>
+    <li>Department HOD &ndash; [Name of the Head of the Department]</li>
+    <li>Project Guide &ndash; [Name of the Project Guide]</li>
+    <li>Dean (Academics) &ndash; Dr. L. Rangaiah</li>
+    <li>Dean (Student Affairs) &ndash; Dr. Ebby Darney</li>
+    <li>CoE &ndash; Dr. Sadashivappa G.</li>
+    <li>Dean Research (R&amp;D) &ndash; Dr. T. C. Manjunath</li>
+    <li>Dept. Staff Members &ndash; Teaching &amp; Non-teaching</li>
+    <li>Family members and relatives</li>
+    <li>Friends and the Almighty</li>
+  </ol>
+
+  <p style="margin-top:14pt">We owe a particular debt to the laboratory staff for access to the electronics bench, the
+  measurement equipment and the department network during the hardware trials, and to our classmates who acted as test
+  drivers and whose unreadable plates, mistyped bookings and determined attempts to defeat the gate produced most of
+  the defect log reported in Chapter&nbsp;12.</p>
+</div>
+
+<!-- ============================ TABLE OF CONTENTS ===================== -->
+<div class="front toc">
+  <div class="fm-head"><span class="mk">@@TOC@@</span>Table of Contents</div>
+
+  <div class="row"><span class="t">Title Sheet</span><span class="lead"></span><span class="p">{{P:TITLE}}</span></div>
+  <div class="row"><span class="t">Certificate</span><span class="lead"></span><span class="p">{{P:CERT}}</span></div>
+  <div class="row"><span class="t">Declaration</span><span class="lead"></span><span class="p">{{P:DECL}}</span></div>
+  <div class="row"><span class="t">Acknowledgement</span><span class="lead"></span><span class="p">{{P:ACK}}</span></div>
+  <div class="row"><span class="t">Table of Contents</span><span class="lead"></span><span class="p">{{P:TOC}}</span></div>
+  <div class="row"><span class="t">List of Figures and Tables</span><span class="lead"></span><span class="p">{{P:LOF}}</span></div>
+  <div class="row"><span class="t">Nomenclature and Acronyms</span><span class="lead"></span><span class="p">{{P:NOM}}</span></div>
+  <div class="row"><span class="t">Abstract</span><span class="lead"></span><span class="p">{{P:ABS}}</span></div>
+
+  <div style="margin-top:10pt"></div>
+
+  <div class="row l1"><span class="t">1. Introduction and Organization of the Project Report</span><span class="lead"></span><span class="p">{{P:C01}}</span></div>
+  <div class="row l1"><span class="t">2. Objective / Aim / Goal of the Project Work</span><span class="lead"></span><span class="p">{{P:C02}}</span></div>
+  <div class="row l1"><span class="t">3. Motivation and Problem Statement Definition</span><span class="lead"></span><span class="p">{{P:C03}}</span></div>
+  <div class="row l1"><span class="t">4. Literature Survey and Gaps</span><span class="lead"></span><span class="p">{{P:C04}}</span></div>
+  <div class="row l1"><span class="t">5. Design Concepts Used in the Project</span><span class="lead"></span><span class="p">{{P:C05}}</span></div>
+  <div class="row l1"><span class="t">6. Tools Used in the Project (Hardware and Software)</span><span class="lead"></span><span class="p">{{P:C06}}</span></div>
+  <div class="row l1"><span class="t">7. Proposed Algorithm, Flow Chart and Data-Flow Diagrams</span><span class="lead"></span><span class="p">{{P:C07}}</span></div>
+  <div class="row l1"><span class="t">8. Working Principle of the Project</span><span class="lead"></span><span class="p">{{P:C08}}</span></div>
+  <div class="row l1"><span class="t">9. Proposed Block Diagram and Circuit Diagram</span><span class="lead"></span><span class="p">{{P:C09}}</span></div>
+  <div class="row l1"><span class="t">10. Proposed Methodology</span><span class="lead"></span><span class="p">{{P:C10}}</span></div>
+  <div class="row l1"><span class="t">11. Overall Working of the Project</span><span class="lead"></span><span class="p">{{P:C11}}</span></div>
+  <div class="row l1"><span class="t">12. Results (Simulation / Experimental) and Justifications</span><span class="lead"></span><span class="p">{{P:C12}}</span></div>
+  <div class="row l1"><span class="t">13. Applications, Advantages and Drawbacks</span><span class="lead"></span><span class="p">{{P:C13}}</span></div>
+  <div class="row l1"><span class="t">14. Outcome of the Project and Reflection Notes</span><span class="lead"></span><span class="p">{{P:C14}}</span></div>
+  <div class="row l1"><span class="t">15. Conclusions and Future Works that Could be Done</span><span class="lead"></span><span class="p">{{P:C15}}</span></div>
+  <div class="row l1"><span class="t">References and Bibliography</span><span class="lead"></span><span class="p">{{P:REF}}</span></div>
+  <div class="row l1"><span class="t">Appendix</span><span class="lead"></span><span class="p">{{P:APP}}</span></div>
+  <div class="row l1"><span class="t">PO and PSO Mapping for Project Work</span><span class="lead"></span><span class="p">{{P:PO}}</span></div>
+  <div class="row l1"><span class="t">Project Cost</span><span class="lead"></span><span class="p">{{P:COST}}</span></div>
+  <div class="row l1"><span class="t">Papers Published</span><span class="lead"></span><span class="p">{{P:PAPER}}</span></div>
+  <div class="row l1"><span class="t">Project Competitions Participated and Won</span><span class="lead"></span><span class="p">{{P:COMP}}</span></div>
+  <div class="row l1"><span class="t">KSCST or Other Funding Applied and Grants Received</span><span class="lead"></span><span class="p">{{P:KSCST}}</span></div>
+  <div class="row l1"><span class="t">Patents Filed and Published</span><span class="lead"></span><span class="p">{{P:PATENT}}</span></div>
+</div>
+
+<!-- ============================ LIST OF FIGURES ======================= -->
+<div class="front lof">
+  <div class="fm-head"><span class="mk">@@LOF@@</span>List of Figures</div>
+
+  <div class="row"><span class="t">Fig. 1 : System context diagram</span><span class="lead"></span><span class="p">{{P:FG01}}</span></div>
+  <div class="row"><span class="t">Fig. 2 : Capture and reading stages 1&ndash;4 of the recognition pipeline</span><span class="lead"></span><span class="p">{{P:FG02}}</span></div>
+  <div class="row"><span class="t">Fig. 3 : Decision path, stages 5&ndash;8, with allow / deny / hold outcomes</span><span class="lead"></span><span class="p">{{P:FG03}}</span></div>
+  <div class="row"><span class="t">Fig. 4 : Parking bay state machine</span><span class="lead"></span><span class="p">{{P:FG04}}</span></div>
+  <div class="row"><span class="t">Fig. 5 : Booking state machine</span><span class="lead"></span><span class="p">{{P:FG05}}</span></div>
+  <div class="row"><span class="t">Fig. 6 : Parking session state machine</span><span class="lead"></span><span class="p">{{P:FG06}}</span></div>
+  <div class="row"><span class="t">Fig. 7 : Block diagram of the proposed system</span><span class="lead"></span><span class="p">{{P:FG07}}</span></div>
+  <div class="row"><span class="t">Fig. 8 : Circuit diagram of one gate node</span><span class="lead"></span><span class="p">{{P:FG08}}</span></div>
+  <div class="row"><span class="t">Fig. 9 : Entity&ndash;relationship diagram of the five-table schema</span><span class="lead"></span><span class="p">{{P:FG09}}</span></div>
+  <div class="row"><span class="t">Fig. 10 : Booking sequence &mdash; reservation before arrival</span><span class="lead"></span><span class="p">{{P:FG10}}</span></div>
+  <div class="row"><span class="t">Fig. 11 : Entry sequence &mdash; authorised entry and refusal paths</span><span class="lead"></span><span class="p">{{P:FG11}}</span></div>
+  <div class="row"><span class="t">Fig. 12 : Exit sequence &mdash; release and billing</span><span class="lead"></span><span class="p">{{P:FG12}}</span></div>
+  <div class="row"><span class="t">Fig. 13 : Deployment topology on the facility LAN</span><span class="lead"></span><span class="p">{{P:FG13}}</span></div>
+  <div class="row"><span class="t">Fig. 14 : Firmware lifecycle of a gate node</span><span class="lead"></span><span class="p">{{P:FG14}}</span></div>
+  <div class="row"><span class="t">Fig. 15 : Live Deck showing derived availability for six bays</span><span class="lead"></span><span class="p">{{P:FG15}}</span></div>
+  <div class="row"><span class="t">Fig. 16 : Pre-booking page with the bay bound before arrival</span><span class="lead"></span><span class="p">{{P:FG16}}</span></div>
+  <div class="row"><span class="t">Fig. 17 : Operator console with facility plan, gates and open sessions</span><span class="lead"></span><span class="p">{{P:FG17}}</span></div>
+  <div class="row"><span class="t">Fig. 18 : Frame captured by the entry node (640&times;480 JPEG)</span><span class="lead"></span><span class="p">{{P:FG18}}</span></div>
+  <div class="row"><span class="t">Fig. 19 : Plate crop and one binarised variant of the same frame</span><span class="lead"></span><span class="p">{{P:FG19}}</span></div>
+  <div class="row"><span class="t">Fig. 20 : Bench rig &mdash; entry node, servo barrier and lane</span><span class="lead"></span><span class="p">{{P:FG20}}</span></div>
+</div>
+
+<!-- ============================ LIST OF TABLES ======================== -->
+<div class="front lof">
+  <div class="fm-head"><span class="mk">@@LOT@@</span>List of Tables</div>
+
+  <div class="row"><span class="t">Table 1 : Objectives of the project and how each is evidenced</span><span class="lead"></span><span class="p">{{P:TB01}}</span></div>
+  <div class="row"><span class="t">Table 2 : Capabilities deliberately kept out of scope</span><span class="lead"></span><span class="p">{{P:TB02}}</span></div>
+  <div class="row"><span class="t">Table 3 : Literature survey &mdash; methods, advantages and gaps</span><span class="lead"></span><span class="p">{{P:TB03}}</span></div>
+  <div class="row"><span class="t">Table 4 : Design decisions, alternatives and accepted trade-offs</span><span class="lead"></span><span class="p">{{P:TB04}}</span></div>
+  <div class="row"><span class="t">Table 5 : Hardware used in the project</span><span class="lead"></span><span class="p">{{P:TB05}}</span></div>
+  <div class="row"><span class="t">Table 6 : Software used in the project and its role</span><span class="lead"></span><span class="p">{{P:TB06}}</span></div>
+  <div class="row"><span class="t">Table 7 : Pin map of a gate node</span><span class="lead"></span><span class="p">{{P:TB07}}</span></div>
+  <div class="row"><span class="t">Table 8 : Wiring table &mdash; entry node</span><span class="lead"></span><span class="p">{{P:TB08}}</span></div>
+  <div class="row"><span class="t">Table 9 : Wiring table &mdash; exit node</span><span class="lead"></span><span class="p">{{P:TB09}}</span></div>
+  <div class="row"><span class="t">Table 10 : Barrier control truth table</span><span class="lead"></span><span class="p">{{P:TB10}}</span></div>
+  <div class="row"><span class="t">Table 11 : Methodology phases and deliverables</span><span class="lead"></span><span class="p">{{P:TB11}}</span></div>
+  <div class="row"><span class="t">Table 12 : WebSocket event catalogue</span><span class="lead"></span><span class="p">{{P:TB12}}</span></div>
+  <div class="row"><span class="t">Table 13 : Levels of testing used in the project</span><span class="lead"></span><span class="p">{{P:TB13}}</span></div>
+  <div class="row"><span class="t">Table 14 : End-to-end automated checks and their results</span><span class="lead"></span><span class="p">{{P:TB14}}</span></div>
+  <div class="row"><span class="t">Table 15 : Manual and interface checks</span><span class="lead"></span><span class="p">{{P:TB15}}</span></div>
+  <div class="row"><span class="t">Table 16 : Defect log</span><span class="lead"></span><span class="p">{{P:TB16}}</span></div>
+  <div class="row"><span class="t">Table 17 : Two diagnostic records captured on the bench</span><span class="lead"></span><span class="p">{{P:TB17}}</span></div>
+  <div class="row"><span class="t">Table 18 : Verified functional results, 31 October 2026</span><span class="lead"></span><span class="p">{{P:TB18}}</span></div>
+  <div class="row"><span class="t">Table 19 : Engineering metrics measured from the repository</span><span class="lead"></span><span class="p">{{P:TB19}}</span></div>
+  <div class="row"><span class="t">Table 20 : Comparison of AutoPark with related approaches</span><span class="lead"></span><span class="p">{{P:TB20}}</span></div>
+  <div class="row"><span class="t">Table 21 : Threats to validity and their mitigation</span><span class="lead"></span><span class="p">{{P:TB21}}</span></div>
+  <div class="row"><span class="t">Table 22 : Application areas of the system</span><span class="lead"></span><span class="p">{{P:TB22}}</span></div>
+  <div class="row"><span class="t">Table 23 : Objectives achieved and evidence</span><span class="lead"></span><span class="p">{{P:TB23}}</span></div>
+  <div class="row"><span class="t">Table 24 : Month-wise work flow of the project</span><span class="lead"></span><span class="p">{{P:TB24}}</span></div>
+  <div class="row"><span class="t">Table 25 : REST API reference</span><span class="lead"></span><span class="p">{{P:TB25}}</span></div>
+  <div class="row"><span class="t">Table 26 : Bill of materials</span><span class="lead"></span><span class="p">{{P:TB26}}</span></div>
+  <div class="row"><span class="t">Table 27 : Bench checklist before every demonstration</span><span class="lead"></span><span class="p">{{P:TB27}}</span></div>
+  <div class="row"><span class="t">Table 28 : Troubleshooting guide</span><span class="lead"></span><span class="p">{{P:TB28}}</span></div>
+  <div class="row"><span class="t">Table 29 : PO and PSO mapping</span><span class="lead"></span><span class="p">{{P:TB29}}</span></div>
+  <div class="row"><span class="t">Table 30 : Project cost estimation</span><span class="lead"></span><span class="p">{{P:TB30}}</span></div>
+</div>
+
+<!-- ============================ NOMENCLATURE ========================== -->
+<div class="front">
+  <div class="fm-head"><span class="mk">@@NOM@@</span>Nomenclature and Acronyms</div>
+
+  <p class="b" style="margin-bottom:6pt">Abbreviations (alphabetical order)</p>
+  <table class="t10">
+    <tr><td style="width:22%">ANPR / ALPR</td><td>Automatic Number Plate Recognition / Automatic Licence Plate Recognition</td></tr>
+    <tr><td>API</td><td>Application Programming Interface</td></tr>
+    <tr><td>CIE</td><td>Continuous Internal Evaluation</td></tr>
+    <tr><td>CORS</td><td>Cross-Origin Resource Sharing</td></tr>
+    <tr><td>CSE (IC)</td><td>Computer Science and Engineering (IoT and Cyber Security with Blockchain Technology)</td></tr>
+    <tr><td>CTC</td><td>Connectionist Temporal Classification</td></tr>
+    <tr><td>DFD</td><td>Data-Flow Diagram</td></tr>
+    <tr><td>ER</td><td>Entity&ndash;Relationship</td></tr>
+    <tr><td>GPIO</td><td>General-Purpose Input/Output</td></tr>
+    <tr><td>HIL</td><td>Hardware-in-the-Loop</td></tr>
+    <tr><td>HSRP</td><td>High Security Registration Plate</td></tr>
+    <tr><td>HTTP / HTTPS</td><td>Hypertext Transfer Protocol / HTTP Secure</td></tr>
+    <tr><td>IoT</td><td>Internet of Things</td></tr>
+    <tr><td>JPEG</td><td>Joint Photographic Experts Group (image format)</td></tr>
+    <tr><td>JSON</td><td>JavaScript Object Notation</td></tr>
+    <tr><td>JWT</td><td>JSON Web Token</td></tr>
+    <tr><td>KSCST</td><td>Karnataka State Council for Science and Technology</td></tr>
+    <tr><td>LAN</td><td>Local Area Network</td></tr>
+    <tr><td>LSTM</td><td>Long Short-Term Memory</td></tr>
+    <tr><td>OCR</td><td>Optical Character Recognition</td></tr>
+    <tr><td>ORM</td><td>Object&ndash;Relational Mapping</td></tr>
+    <tr><td>PDR</td><td>Plate Detection Rate</td></tr>
+    <tr><td>PO / PSO</td><td>Programme Outcome / Programme Specific Outcome</td></tr>
+    <tr><td>PSRAM</td><td>Pseudo-Static Random Access Memory</td></tr>
+    <tr><td>PWM</td><td>Pulse-Width Modulation</td></tr>
+    <tr><td>REST</td><td>Representational State Transfer</td></tr>
+    <tr><td>SEE</td><td>Semester End Examination</td></tr>
+    <tr><td>SQL / SQLite</td><td>Structured Query Language / embedded SQL database engine</td></tr>
+    <tr><td>UG BE</td><td>Under-Graduate Bachelor of Engineering</td></tr>
+    <tr><td>UI / UX</td><td>User Interface / User Experience</td></tr>
+    <tr><td>UTC</td><td>Coordinated Universal Time</td></tr>
+    <tr><td>VGA</td><td>Video Graphics Array, 640&times;480 pixels</td></tr>
+    <tr><td>VTU</td><td>Visvesvaraya Technological University</td></tr>
+    <tr><td>WS</td><td>WebSocket</td></tr>
+    <tr><td>YOLO</td><td>You Only Look Once (single-stage object-detection family)</td></tr>
+  </table>
+
+  <p class="b" style="margin:10pt 0 6pt 0">Symbols used (alphabetical order)</p>
+  <table class="t10">
+    <tr><td style="width:22%"><i>n</i></td><td>Number of parking bays in the facility</td></tr>
+    <tr><td><i>V</i></td><td>Number of preprocessing variants applied to one plate crop (V = 4)</td></tr>
+    <tr><td><i>F</i></td><td>Number of frames accumulated in one recognition burst (F &le; 3)</td></tr>
+    <tr><td><i>L</i></td><td>Length of a plate string in characters</td></tr>
+    <tr><td><i>&sigma;</i><sup>2</sup></td><td>Variance of the Laplacian, used as the sharpness metric</td></tr>
+    <tr><td><i>&theta;</i></td><td>Servo shaft angle: 0&deg; closed, 90&deg; open</td></tr>
+    <tr><td>&#8377;</td><td>Indian Rupee</td></tr>
+    <tr><td>&#8734;</td><td>Infinity</td></tr>
+  </table>
+</div>
+
+<!-- ============================ ABSTRACT ============================== -->
+<div class="front">
+  <div class="fm-head"><span class="mk">@@ABS@@</span>Abstract</div>
+
+  <p>Finding a free parking space in dense commercial and campus environments is slow, wasteful and difficult to
+  monitor. Conventional &ldquo;smart&rdquo; parking installations solve the visibility problem by instrumenting every bay
+  with an ultrasonic, magnetic or infrared sensor, which multiplies hardware cost, cabling and maintenance with lot
+  size. This project presents AutoPark, a smart parking system that replaces per-bay sensing with two camera nodes at
+  the entry and exit gates. Each node captures a frame every five seconds, transmits it to a FastAPI backend, and the
+  backend locates the licence plate with a YOLOv11 detector and reads it with EasyOCR using four preprocessing
+  variants and multi-frame voting.</p>
+
+  <p>The system supports both guaranteed advance pre-bookings and unreserved walk-in entry: a pre-booked vehicle is
+  routed to its held bay, while a walk-in vehicle is automatically allocated the next available bay, raising the SG90
+  boom barrier and highlighting the assigned bay on the live dashboard. If the lot is full, or if the evidence for a
+  plate is ambiguous, the barrier remains closed. Exit is handled symmetrically: the plate is matched against active
+  sessions, the bay is released, and an itemised receipt is produced. Because occupancy is derived from entry and exit
+  events rather than measured bay by bay, the sensing hardware is constant in the number of bays instead of growing
+  with it.</p>
+
+  <p>The implementation comprises a six-bay facility, a real-time Next.js dashboard, a role-aware operator console, a
+  monochrome operations design system, and a hardware-in-the-loop simulator that exercises the same endpoints as the
+  physical cameras. Verification is reported as it stands rather than as it was hoped to stand: twelve of fifteen
+  end-to-end checks pass, eleven functional behaviours were confirmed directly through the HTTP interface &mdash; bay
+  binding, walk-in allocation, duplicate suppression, low-confidence refusal, full-lot refusal, exit release and both
+  tariff boundaries &mdash; and the complete fifty-seven-test suite is red only for two identified reasons, a missing
+  OCR dependency and six assertions that predate the walk-in policy. Six defects found during validation were fixed and
+  six remain open, all disclosed. Recognition accuracy and end-to-end latency are not claimed as measured results in
+  this report: the measurement protocol is defined, two representative diagnostic records are reproduced, and the
+  remaining bench tests are listed explicitly as pending. The report concludes that gate-only occupancy inference is
+  workable at the scale of a department lot, and that its costs &mdash; dependence on plate-read quality, one recovery
+  path for unreadable exits, and a policy decision about unbooked arrivals &mdash; are predictable and
+  manageable.</p>
+
+  <p class="keyword" style="margin-top:10pt"><b>Keywords / Index terms :</b> <i>smart parking, automatic number plate
+  recognition, YOLOv11, EasyOCR, edge IoT, ESP32-CAM, boom barrier, FastAPI, decision under uncertainty, real-time
+  systems.</i></p>
+</div>

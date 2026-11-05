@@ -1,0 +1,749 @@
+<!-- ============================ CHAPTER 6 ============================= -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 6</span><span class="mk">@@C06@@</span>Tools Used in the Project (Hardware and Software)</h1>
+
+<p>This chapter lists the hardware and software actually used to build and run the system, with the version of each
+component as it appears in the repository, and explains in one or two sentences why that tool was chosen for the
+problem rather than a more capable alternative. Three constraints governed the selection: the rig had to be affordable
+within a department project budget, the stack had to run unattended on a single laptop on the facility LAN, and every
+component had to be something the team could debug at source level when it failed during a demonstration.</p>
+
+<h2>6.1 Hardware</h2>
+
+<p>The hardware is deliberately minimal: two camera nodes, two servos and the material to mount them. There is no
+single-board computer at the gate, no sensor in any bay, and no router beyond the department Wi-Fi access point. The
+camera node is an ESP32-CAM with the AI-Thinker pinout, an OV2640 sensor and 4&nbsp;MB of PSRAM; the PSRAM matters
+because it allows a 640&times;480 JPEG to be captured and buffered without dropping frames. The actuator is an SG90
+micro-servo, which is position-controlled and therefore needs no limit switches, at the cost of torque and of having no
+position feedback. A passive buzzer provides an audible confirmation at the entry gate and can be disabled in firmware.</p>
+
+<table>
+<caption><span class="mk">@@TB05@@</span>Table 5 : Hardware used in the project</caption>
+<thead><tr><th class="c" style="width:5%">#</th><th style="width:27%">Component</th><th class="c" style="width:8%">Qty</th><th style="width:30%">Specification as used</th><th style="width:30%">Role in the system</th></tr></thead>
+<tbody>
+<tr><td class="c">1</td><td>ESP32-CAM (AI-Thinker)</td><td class="c">2</td><td>ESP32 dual-core 240 MHz, 520 KB SRAM, 4 MB PSRAM, OV2640 camera, 802.11 b/g/n</td><td>Captures a VGA JPEG every five seconds and drives the servo on command</td></tr>
+<tr><td class="c">2</td><td>USB-TTL programmer (3.3 V)</td><td class="c">1</td><td>FTDI-compatible, 3.3 V logic</td><td>Flashing the ESP32-CAM, which has no USB port</td></tr>
+<tr><td class="c">3</td><td>SG90 micro-servo</td><td class="c">2</td><td>180&deg; travel, 4.8&ndash;6 V, ~1.8 kg&middot;cm stall torque</td><td>Boom barrier arm: 0&deg; closed, 90&deg; open, five-second hold</td></tr>
+<tr><td class="c">4</td><td>5 V 2 A adapter</td><td class="c">2</td><td>Regulated 5 V, 2 A, common ground with the board</td><td>Separate supply for servo and board to avoid brown-out resets</td></tr>
+<tr><td class="c">5</td><td>Active buzzer</td><td class="c">1</td><td>5 V active buzzer on GPIO 13</td><td>Audible confirmation of an admitted entry; optional</td></tr>
+<tr><td class="c">6</td><td>Jumper wires and breadboard</td><td class="c">&mdash;</td><td>Male-to-female dupont leads</td><td>Prototyping the node without soldering</td></tr>
+<tr><td class="c">7</td><td>Boom arm material</td><td class="c">2</td><td>Lightweight cardboard and 3D-printed bracket</td><td>Visible barrier arm attached to the servo horn</td></tr>
+<tr><td class="c">8</td><td>Mounting hardware</td><td class="c">&mdash;</td><td>Cable ties, base plates, clamps</td><td>Fixing camera and servo at the gate</td></tr>
+<tr><td class="c">9</td><td>Host laptop</td><td class="c">1</td><td>macOS, Python 3.13, Node.js 26, 8 GB RAM</td><td>Runs the backend, the database, the models and the web client</td></tr>
+<tr><td class="c">10</td><td>Facility Wi-Fi / LAN</td><td class="c">1</td><td>802.11n, 2.4 GHz, 192.168.0.0/24</td><td>Carries camera uploads, browser traffic and WebSocket events</td></tr>
+</tbody>
+</table>
+
+<p>Two details of the hardware design are worth recording because they caused most of the bench problems. First, the
+servo must not be powered from the ESP32-CAM 3.3&nbsp;V pin; the current draw at stall resets the board, and the
+symptom looks like a software fault. A separate 5&nbsp;V rail with a common ground, and a 470&ndash;1000&nbsp;&micro;F
+electrolytic capacitor across the rail near the servo, removes the resets. Second, the ESP32-CAM has no USB port, so
+the programmer must be connected with GPIO&nbsp;0 held low at boot; the AI-Thinker board silkscreen labels this
+poorly, and a node that appears dead is usually a board that never entered flash mode.</p>
+
+<h2>6.2 Software</h2>
+
+<p>The software stack is a conventional Python service with a JavaScript client. FastAPI was chosen because it gives a
+typed request/response contract and automatic OpenAPI documentation with very little code; SQLAlchemy because the
+models are simple and the same code would run on PostgreSQL if the deployment grew; SQLite because a single lot with a
+handful of clients needs no database server; and Next.js because the dashboard needs both server-rendered pages and a
+long-lived WebSocket connection in the browser. The recognition stack is Ultralytics YOLO11 for localisation, EasyOCR
+for character recognition, and OpenCV for the quality gate and the preprocessing variants.</p>
+
+<table>
+<caption><span class="mk">@@TB06@@</span>Table 6 : Software used in the project and its role</caption>
+<thead><tr><th style="width:20%">Layer</th><th style="width:26%">Technology</th><th style="width:16%">Version in repository</th><th style="width:38%">Role</th></tr></thead>
+<tbody>
+<tr><td>Edge firmware</td><td>Arduino C++ (ESP32 core)</td><td>&mdash;</td><td>Capture, HTTP POST, JSON parse, servo control</td></tr>
+<tr><td>Plate detection</td><td>YOLOv11 (Ultralytics)</td><td>ultralytics (not pinned)</td><td>Locates the plate region in the frame</td></tr>
+<tr><td>Plate reading</td><td>EasyOCR</td><td>not listed in requirements</td><td>Recognises characters and returns per-token confidence</td></tr>
+<tr><td>Image processing</td><td>OpenCV (headless)</td><td>&ge; 4.8.0</td><td>Quality metrics, CLAHE, adaptive and Otsu thresholding</td></tr>
+<tr><td>Backend framework</td><td>FastAPI</td><td>&ge; 0.100.0</td><td>REST and WebSocket API, validation, OpenAPI docs</td></tr>
+<tr><td>ASGI server</td><td>Uvicorn</td><td>&ge; 0.22.0</td><td>Serves the API, single process</td></tr>
+<tr><td>ORM</td><td>SQLAlchemy</td><td>&ge; 2.0.0</td><td>Models, queries, transactions</td></tr>
+<tr><td>Database</td><td>SQLite</td><td>Python standard library</td><td>Persistence in <span class="mono">backend/autopark.db</span></td></tr>
+<tr><td>Authentication</td><td>PyJWT + bcrypt</td><td>&ge; 2.8.0, &ge; 4.0.0</td><td>HS256 tokens and salted password hashing</td></tr>
+<tr><td>Frontend framework</td><td>Next.js (App Router)</td><td>^14.2.5</td><td>Routing and rendering</td></tr>
+<tr><td>UI runtime</td><td>React</td><td>^18.3.1</td><td>Components and client state</td></tr>
+<tr><td>Language</td><td>TypeScript</td><td>^5.5.4</td><td>Type safety on the client</td></tr>
+<tr><td>Styling</td><td>Tailwind CSS</td><td>^3.4.7</td><td>Design tokens and layout utilities</td></tr>
+<tr><td>Icons and motion</td><td>lucide-react, Framer Motion</td><td>^0.417.0, ^11.3.19</td><td>Consistent line icons; modal and card transitions</td></tr>
+<tr><td>Testing</td><td>pytest, httpx</td><td>&ge; 7.4.0, &ge; 0.24.0</td><td>Automated verification against an isolated database</td></tr>
+<tr><td>Editor and toolchain</td><td>Arduino IDE, VS Code, Git</td><td>&mdash;</td><td>Firmware, source and version control</td></tr>
+</tbody>
+</table>
+
+<h2>6.3 How the tools were used to suit the problem</h2>
+
+<p><b>YOLOv11 and EasyOCR.</b> The detector is used only for localisation, not for recognition. It is loaded from
+<span class="mono">backend/models/license_plate_best.pt</span> and the plate pass is invoked with a deliberately
+permissive inference threshold of 0.10: a crop that is likely to contain a plate but not certain is still worth passing
+to the OCR stage, because the OCR confidence and the matching policy provide the real decision. Acceptance at 0.75 is
+applied to the frame confidence after voting, not before. A general vehicle model
+(<span class="mono">yolo11n.pt</span>) is also loaded to classify the vehicle type for the receipt, but the plate model
+is the one that gates access.</p>
+
+<p><b>OpenCV.</b> OpenCV is used for three things: the sharpness, brightness and contrast metrics that form the quality
+gate; the four preprocessing variants (adaptive threshold, inverted adaptive threshold, Otsu and CLAHE); and the
+debug artefacts that the diagnostics endpoint can return. It is not used for detection or recognition, because
+classical computer vision is exactly what the detector replaced.</p>
+
+<p><b>FastAPI and Uvicorn.</b> The service exposes twenty-two REST routes and one WebSocket route. FastAPI's dependency
+system supplies a database session per request and a current-user dependency for the account routes; its response
+models keep the contract between the backend and the browser explicit, which is what allowed the client to be written
+against the schema rather than against prose.</p>
+
+<p><b>Next.js, React and Tailwind.</b> The client has eight pages, of which five are part of the demonstration flow. The
+App Router allows the layout, sign band and navigation to be rendered once and the live data to be fetched on the
+client, where the WebSocket lives. Tailwind carries the design tokens, so the colour of a status is defined once and
+used consistently in the plan, the table and the legend.</p>
+
+<p><b>Arduino core for ESP32.</b> The firmware is two sketches of about 350 lines each. They do not contain business
+logic. The entry sketch captures a frame, posts it to <span class="mono">/api/detection/entry</span>, parses the JSON
+response with ArduinoJson, and moves the servo to 90&deg; for five seconds if and only if
+<span class="mono">open_barrier</span> is true. The exit sketch is the same without the buzzer. Keeping the firmware
+this small is a design decision (Section&nbsp;5.5), not a limitation of the toolchain.</p>
+
+<h2>6.4 Development and runtime environment</h2>
+
+<p>The backend runs under <span class="mono">/opt/anaconda3/bin/python3</span> (Python 3.13.9) because the default
+interpreter on the host machine does not carry SQLAlchemy and the vision dependencies. Both services are started
+detached by <span class="mono">scripts/host.sh</span>, which writes logs to <span class="mono">.run/</span>; the
+frontend runs on port 3000 and the API on port 8000, and the cameras are pointed at the host laptop's LAN address.
+There is no cloud dependency, no external database and no TLS terminator: this is a LAN deployment, which is the
+realistic topology for a gate system. The consequences of that choice &mdash; clear-text credentials on the LAN, no
+rate limiting, unauthenticated detection routes &mdash; are listed as limitations in Chapter&nbsp;13 rather than
+hidden.</p>
+
+<p>One packaging defect is recorded here because it affects reproducibility: <span class="mono">requirements.txt</span>
+lists the web, database and OpenCV dependencies but omits both <span class="mono">easyocr</span> and
+<span class="mono">ultralytics</span>. A clean install therefore produces a backend that starts and serves the
+dashboard but cannot run live recognition. The defect is carried in the defect log (Table&nbsp;16) and the fix is part
+of the future work in Chapter&nbsp;15.</p>
+</div>
+
+<!-- ============================ CHAPTER 7 ============================= -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 7</span><span class="mk">@@C07@@</span>Proposed Algorithm, Flow Chart and Data-Flow Diagrams</h1>
+
+<p>This chapter gives the algorithms that implement the design concepts of Chapter&nbsp;5, the flow charts that show
+the order of the stages, the data-flow view of the system, and the state machines that define the legal transitions of
+a bay, a booking and a session. The algorithms are written in a pseudocode close to the Python implementation so that
+they can be checked against the code, and each is followed by a short discussion of the decisions it encodes.</p>
+
+<h2>7.1 Recognition algorithm</h2>
+
+<p>The recognition pipeline turns one JPEG frame into a ranked list of plate candidates, or into an explicit failure
+with a stage label. It is deliberately not a black box: every stage can fail, and the failure is reported with the
+reason rather than collapsed into &ldquo;no plate found&rdquo;.</p>
+
+<pre>Algorithm 1  RecognisePlate(frame)
+ 1  q &larr; AssessQuality(frame)                       # sharpness, brightness, contrast
+ 2  if q.grade = invalid then return no_plate(stage=camera_quality)
+ 3  box, conf &larr; PlateDetector(frame)               # YOLOv11, inference threshold 0.25
+ 4  if box is empty then return no_plate(stage=plate_detection)
+ 5  crop &larr; frame[box]
+ 6  variants &larr; [adaptive, adaptive_inv, otsu, clahe](crop)
+ 7  candidates &larr; &empty;
+ 8  for each v in variants do
+ 9      text, c &larr; Ocr(v, allowlist="A-Z0-9")
+10      if length(text) &ge; 3 and distinct(text) &ge; 2 then
+11          candidates &larr; candidates &cup; {(text, c, v)}
+12      if two variants agree on a text of length &ge; 6 with c &ge; 0.75
+13          then break                                  # short-circuit, keep the common case fast
+14  for each distinct text t in candidates do
+15      votes(t) &larr; |{v : v produced t}| / V
+16      score(t) &larr; 0.70 &middot; max_conf(t) + 0.30 &middot; votes(t)
+17  return candidates ranked by (score, votes)</pre>
+
+<p>Two details of the algorithm carry most of the weight. The short-circuit at step 12 is what keeps the common case
+fast: when two variants agree on a long, confident reading, the remaining variants add little and cost an OCR pass
+each. The scoring at step 16 is what makes agreement count as evidence: a reading seen in three of four variants at
+0.78 confidence outranks a reading seen once at 0.80, because the second is more likely to be an artefact of one
+binarisation. The weights (0.70 confidence, 0.30 agreement) are a design choice, not a fitted parameter, and they are
+stated as such.</p>
+
+<figure class="w90">
+  <img src="../figures/fig-11.png" alt="Capture and reading stages">
+  <figcaption><span class="mk">@@FG02@@</span>Fig. 2 : Capture and reading stages 1&ndash;4 of the recognition pipeline</figcaption>
+</figure>
+
+<h2>7.2 Multi-frame burst voting</h2>
+
+<p>A single frame is a single sample, and motion blur or JPEG compression can make any one frame unreliable. The
+pipeline therefore accumulates candidates over a short burst before deciding. The burst window is five seconds, which
+matches the capture interval of the camera, and at most three frames are merged. A candidate seen in all three frames
+is promoted over one seen once, even if the latter has a higher single-frame confidence:</p>
+
+<p class="center"><i>frame_boost</i> = 0.75 &times; <i>max_conf</i> + 0.25 &times; <i>frame_ratio</i></p>
+
+<p>where <i>frame_ratio</i> is the fraction of frames in the burst that produced the candidate. This is the practical
+answer to the question &ldquo;what if one frame is bad?&rdquo;: the system waits for corroboration instead of trusting
+the first read, and it does so within the same five-second rhythm as the camera, so a moving vehicle is still served
+promptly.</p>
+
+<h2>7.3 Entry allocation algorithm</h2>
+
+<p>Allocation is the point at which recognition becomes a physical decision. The algorithm applies the four refusal
+gates of Section&nbsp;5.3 in a fixed order, and it holds a single in-process lock while it checks and commits, so two
+frames arriving together cannot both see the same bay as free.</p>
+
+<pre>Algorithm 2  AllocateEntry(plate, confidence, candidates)
+ 1  if confidence &lt; 0.75 then return ignored
+ 2  if no candidate has &ge; 4 alphanumeric characters then return no_plate
+ 3  acquire allocation_lock:
+ 4      if plate matches an ACTIVE session then return already_allocated
+ 5      if the same canonical plate was seen within 10 s then return already_allocated
+ 6      match &larr; unique booking in PENDING_ARRIVAL scoring &ge; 0.72
+ 7      if match is ambiguous (top two within 0.10) then return ambiguous
+ 8      if match is none then
+ 9          if not ALLOW_WALKIN_ENTRY then return unauthorized
+10      bay &larr; match.slot_id if it is still free, else lowest-numbered free bay
+11      if no bay then return parking_full
+12      bay.status &larr; OCCUPIED
+13      if match then match.status &larr; CHECKED_IN
+14      create session(ACTIVE, plate, bay, match, evidence)
+15      write detection_event(plate, confidence, candidates, decision)
+16      broadcast slot.allocated
+17      return {status: allocated, slot: bay, open_barrier: true}</pre>
+
+<p>Three properties of this algorithm are worth stating explicitly. First, the booked bay wins over the lowest-numbered
+bay: step 10 reads the booking's slot identifier before falling back, which is the fix for a real defect in which the
+driver was sent to a different bay from the one reserved (D-01 in Table&nbsp;16). Second, duplicate frames are
+suppressed twice, once by the active-session check and once by a ten-second per-plate cooldown, because the camera
+posts every five seconds and a stationary car at the gate would otherwise generate two allocations. Third, the walk-in
+path is a policy switch, not a separate endpoint: an unreserved vehicle is admitted only when
+<span class="mono">ALLOW_WALKIN_ENTRY</span> is active, and it draws only from bays that are actually free, so it can
+never take a bay that is held by a booking.</p>
+
+<h2>7.4 Exit release and billing algorithm</h2>
+
+<pre>Algorithm 3  ReleaseExit(plate, confidence, candidates)
+ 1  if confidence &lt; 0.75 then return ignored
+ 2  matches &larr; ACTIVE sessions scoring &ge; 0.72 against the candidates
+ 3  if matches is empty then return no_active_session
+ 4  if top two scores are within 0.10 then return ambiguous
+ 5  session &larr; the unique winner
+ 6  session.status &larr; COMPLETED; session.exit_time &larr; now (server UTC)
+ 7  bay.status &larr; AVAILABLE; booking.status &larr; COMPLETED
+ 8  d &larr; max(1, floor((exit_time &minus; entry_time) / 60))          # whole minutes
+ 9  amount &larr; 30 if d &le; 60 else 30 + ((d &minus; 1) div 60) &times; 20
+10  write detection_event(plate, confidence, candidates, decision)
+11  broadcast slot.released, vehicle.exited, barrier.exit
+12  return {status: released, slot, duration_minutes: d, billed_amount: amount,
+            open_barrier: true}</pre>
+
+<p>The billing formula is the only place in the system where money is computed, and it is computed on the server so
+that the receipt cannot be edited by the client. The tariff is &#8377;30 for the first hour and &#8377;20 for every
+additional started hour; a stay of sixty minutes bills &#8377;30, sixty-one minutes bills &#8377;50, and one hundred
+and twenty-one minutes bills &#8377;70. Duration is floored to whole minutes and clamped to a minimum of one, so a
+vehicle that enters and leaves within the same minute is still billed for one minute rather than zero.</p>
+
+<h2>7.5 Decision flow chart</h2>
+
+<p>Figure&nbsp;3 shows the decision half of the pipeline as a flow chart. The three outcomes on the right &mdash; allow,
+deny and hold &mdash; correspond exactly to the three physical behaviours of the barrier: open, remain closed, and
+remain closed with an operator alert. The chart is drawn with a single decision point for each gate so that the order
+of the gates is visible: quality, detection, reading, scoring, voting, matching, and finally the choice between allow,
+deny and hold.</p>
+
+<figure class="w90">
+  <img src="../figures/fig-12.png" alt="Decision path stages 5 to 8">
+  <figcaption><span class="mk">@@FG03@@</span>Fig. 3 : Decision path, stages 5&ndash;8, with allow / deny / hold outcomes</figcaption>
+</figure>
+
+<h2>7.6 Data-flow view</h2>
+
+<p>At level&nbsp;0 the system is a single process that receives frames from two cameras and commands from two clients,
+reads and writes one database, and returns barrier commands and state to the same parties. At level&nbsp;1 the process
+divides into four stores and five transformations: the frame store (transient), the session store, the booking store
+and the detection-event store; and the transformations <i>assess</i>, <i>read</i>, <i>match</i>, <i>allocate</i> and
+<i>release</i>. The context diagram of Fig.&nbsp;1 is the level-0 view; the component view of Fig.&nbsp;7 in
+Chapter&nbsp;9 is the level-1 view. The important data-flow property is that no transformation writes to the session
+store without also writing a detection event, so the audit trail cannot diverge from the state.</p>
+
+<h2>7.7 State machines</h2>
+
+<p>Three state machines define the legal transitions in the system. They are small enough to be checked by inspection,
+and together they encode the invariants of Section&nbsp;5.8.</p>
+
+<p><b>Parking bay.</b> A bay is created AVAILABLE. A pre-booking moves it to ALLOCATED and holds it. A matched entry moves
+it to OCCUPIED; an exit match, an operator release or a facility reset returns it to AVAILABLE. A bay can be moved to
+BLOCKED for maintenance and back. No transition into OCCUPIED is possible without a session, and no transition out of
+OCCUPIED is possible while a session is active.</p>
+
+<figure class="w60">
+  <img src="../figures/fig-06.png" alt="Parking bay state machine">
+  <figcaption><span class="mk">@@FG04@@</span>Fig. 4 : Parking bay state machine</figcaption>
+</figure>
+
+<p><b>Booking.</b> A booking is created PENDING_ARRIVAL with a bay and an expiry time. It becomes CHECKED_IN when the
+vehicle arrives, CANCELLED when the driver cancels, EXPIRED when the expiry passes without arrival, and COMPLETED when
+the corresponding session closes. Every terminal state releases the bay, which is what prevents the phantom occupancy
+defect recorded as D-02.</p>
+
+<figure class="w60">
+  <img src="../figures/fig-07.png" alt="Booking state machine">
+  <figcaption><span class="mk">@@FG05@@</span>Fig. 5 : Booking state machine</figcaption>
+</figure>
+
+<p><b>Session.</b> A session is created ACTIVE at entry and becomes COMPLETED at exit or on an operator reset. There is
+no suspended state and no re-open path, which keeps the occupancy query trivial: a bay is occupied if and only if
+there exists a row with status ACTIVE that references it.</p>
+
+<figure class="w60">
+  <img src="../figures/fig-08.png" alt="Session state machine">
+  <figcaption><span class="mk">@@FG06@@</span>Fig. 6 : Parking session state machine</figcaption>
+</figure>
+
+<h2>7.8 Worked examples</h2>
+
+<p><b>Canonical match.</b> A booking exists for KA05KK0403. The camera reads KA05KK04O3, with the letter O in place of
+the final zero. Both strings canonicalise to KA05KK0403 through the confusion map, so the similarity is 0.92. The OCR
+confidence for the candidate is 0.91, so the adjusted score is 0.92 &times; (0.80 + 0.20 &times; 0.91) = 0.92 &times;
+0.982 = 0.90, which is above the 0.72 threshold. The vehicle is admitted and the attendance is recorded against the
+booking.</p>
+
+<p><b>Ambiguity refusal.</b> Two bookings exist, for KA05KK0403 and KA05KK0404. The camera reads KA05KK0405, which is one
+edit from each. Both score 0.85, the gap is 0.00, and the ambiguity rule fires: the barrier stays closed and the
+operator sees both candidate plates. The system has not guessed, and the driver is asked to present the plate again
+rather than being sent to a bay that may belong to someone else.</p>
+
+<p><b>Billing boundaries.</b> A stay of 60 minutes bills &#8377;30; 61 minutes bills &#8377;50; 120 minutes bills
+&#8377;50; 121 minutes bills &#8377;70. The boundary behaviour is deliberate: the first hour is a block, and each
+additional started hour is a block, so the charge never decreases as the stay grows and never charges a partial hour as
+a full one.</p>
+</div>
+
+<!-- ============================ CHAPTER 8 ============================= -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 8</span><span class="mk">@@C08@@</span>Working Principle of the Project</h1>
+
+<p>This chapter explains, in one continuous narrative, how the system works: what happens between the moment a vehicle
+approaches a gate and the moment the barrier moves, and why each step is necessary. The algorithms of Chapter&nbsp;7
+give the precise order of operations; this chapter gives the mechanism and the reasoning behind it.</p>
+
+<h2>8.1 The operating principle in one sentence</h2>
+
+<p>A parking bay is free if and only if a vehicle has entered the facility and has not yet left it. Everything else
+follows from that sentence. The entry gate is the only place where a vehicle can begin to occupy a bay, the exit gate
+is the only place where it can stop occupying one, and the database &mdash; not a sensor inside the lot &mdash; is the
+record of both events. The two cameras are therefore not measuring parking spaces; they are observing the boundary of
+the facility, and the occupancy of every space is derived from those boundary observations.</p>
+
+<h2>8.2 From photons to a decision</h2>
+
+<p>The entry node wakes on a five-second cycle, captures a 640&times;480 JPEG and posts it as a multipart request to
+<span class="mono">/api/detection/entry</span>. The request carries no decision and no state; the node does not know
+whether the vehicle is expected. On the server, the frame is first graded. The variance of the Laplacian measures
+sharpness, the mean pixel intensity measures exposure, and the standard deviation measures contrast; a frame that is
+too blurred, too dark or too flat is labelled and the pipeline stops there, because running a detector on a frame that
+cannot possibly yield a readable plate wastes two seconds of OCR and produces a misleading confidence. The grade is
+recorded with the frame, so a refusal caused by the camera can be distinguished from a refusal caused by an unknown
+plate.</p>
+
+<p>If the frame passes the quality gate, the plate detector returns a bounding box and a confidence. The crop inside the
+box is then normalised in four different ways &mdash; adaptive threshold, inverted adaptive threshold, Otsu threshold
+and CLAHE &mdash; because no single binarisation works across the lighting conditions a gate camera sees in a day. Each
+variant is passed to the OCR engine with an alphabet restricted to capital letters and digits, which removes punctuation
+noise, and the results are sorted top-to-bottom and then left-to-right so that a two-line plate concatenates in the
+right order. The candidates are scored for confidence and for agreement between variants, and the burst accumulator
+merges them with candidates from the previous frames in the same five-second window.</p>
+
+<h2>8.3 The entry decision</h2>
+
+<p>The highest-scoring candidate is then compared with the bookings that are waiting for arrival. The comparison is not a
+string equality test: both strings are canonicalised through a map of visually confusable characters, the residual
+distance is measured, and the resulting similarity is discounted by the OCR confidence. A booking matches if the
+adjusted score is at least 0.72. If exactly one booking matches, the vehicle is admitted to the bay that the booking
+holds. If no booking matches and walk-in admission is enabled, the vehicle is admitted to the lowest-numbered free bay,
+and the bay is highlighted on the dashboard so the driver can see where to go. If two bookings match within 0.10 of
+each other, the system refuses and raises an alert. If no bay is free, the status is <span class="mono">parking_full</span>
+and the display says the lot is full rather than that the vehicle is unknown, because those are different problems for
+the driver.</p>
+
+<p>Admission is a single database transaction: the bay becomes OCCUPIED, the booking becomes CHECKED_IN, a session
+becomes ACTIVE, and a detection event is written with the plate, the confidence, the candidate list and the decision.
+Only after the transaction commits does the server return <span class="mono">open_barrier: true</span>. The firmware
+reads that boolean and, if it is true, rotates the servo to 90&deg;, waits five seconds and returns it to 0&deg;. If the
+response is delayed, malformed, or reports any other status, the arm does not move. This ordering matters: the barrier
+is a consequence of a committed decision, never a cause of one.</p>
+
+<h2>8.4 The exit decision</h2>
+
+<p>The exit path is the mirror image, with one difference in consequence. The frame is read in the same way, but the
+candidates are compared against ACTIVE sessions rather than pending bookings. A unique match closes the session,
+records the exit time, frees the bay, completes the booking, computes the duration in whole minutes and applies the
+tariff. The response carries the released bay, the duration and the amount, and the client renders an itemised receipt.
+If the plate matches no active session, the barrier stays closed and the operator is alerted. If it matches two, the
+system holds rather than guessing, because releasing the wrong bay would free a space that is still occupied.</p>
+
+<p>The asymmetry is deliberate. At entry, a false admit puts a vehicle into a bay that may belong to someone else; at
+exit, a false release frees a bay that is still occupied and produces a bill for the wrong vehicle. Both corrupt the
+same derived state, and both are prevented by the same rule: the system acts only when the evidence resolves to exactly
+one interpretation.</p>
+
+<h2>8.5 Why the principle works</h2>
+
+<p>The principle works because the two events that change occupancy are exactly the two events that a gate can observe
+reliably. A vehicle cannot enter a lot without passing the entry gate, and it cannot leave without passing the exit
+gate; every other movement inside the lot is irrelevant to the count. This is the same reasoning that makes a
+ticket-based car park work, with the ticket replaced by a plate read. It is also why the architecture can be constant
+in cost: the number of observations needed is two per vehicle movement, regardless of how many bays the movement
+affects.</p>
+
+<p>The principle also has a known cost, and the system is designed around it rather than pretending it does not exist.
+If a vehicle leaves and its plate is never read &mdash; because the camera was blinded by headlights, or the plate was
+dirty, or the vehicle left during a network outage &mdash; the bay remains occupied until a person intervenes. The
+manual release path exists for exactly this case, it is available in the operator console, and it writes an audit
+entry. A per-bay sensor would not have this failure mode. The project's claim is not that the derived state is as
+robust as a measurement; it is that the derived state is accurate enough for a small lot, that its failure mode is
+visible and recoverable, and that it removes a cost that grows with the size of the lot.</p>
+
+<h2>8.6 Behaviour under failure</h2>
+
+<p>Because the barrier is fail-closed, the failure of any component between the camera and the database results in a
+closed gate rather than an open one. A camera that loses Wi-Fi keeps retrying every five seconds and the barrier stays
+down. A backend that is restarted loses no lot state, because the state is in SQLite, and the cameras resume posting as
+soon as the service answers. A browser that disconnects re-reads a snapshot on reconnect and then resumes the stream,
+so a laptop that sleeps does not leave a stale occupancy map on screen. The operator console reports a camera as
+offline after thirty seconds without a frame, which is long enough to survive a dropped packet and short enough to be
+noticed during a demonstration.</p>
+</div>
+
+<!-- ============================ CHAPTER 9 ============================= -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 9</span><span class="mk">@@C09@@</span>Proposed Block Diagram and Circuit Diagram</h1>
+
+<p>This chapter presents the system as a set of blocks and then at the level of a single gate node. The block diagram
+shows what talks to what and, more importantly, where the state lives; the circuit diagram shows how one ESP32-CAM is
+wired to its servo, its buzzer and its supply, because the same wiring is repeated at both gates.</p>
+
+<h2>9.1 Block diagram</h2>
+
+<p>Figure&nbsp;7 divides the system into an edge block, an application block, a data block and a presentation block. The
+arrows carry either a frame (camera to server), a command (server to actuator), a query (client to server) or an event
+(server to client). No arrow carries state from a camera to another camera, and no arrow carries occupancy from the
+server to the database: the database is written by the server and read by the server, and the clients only ever read a
+projection of it.</p>
+
+<figure class="w70">
+  <img src="../figures/fig-02.png" alt="Block diagram">
+  <figcaption><span class="mk">@@FG07@@</span>Fig. 7 : Block diagram of the proposed system</figcaption>
+</figure>
+
+<ol>
+<li><b>Edge block, entry node.</b> ESP32-CAM with an OV2640 sensor. Captures a VGA JPEG every five seconds, posts it to
+the entry detection route, parses the JSON response and drives the entry servo. Holds no lot state.</li>
+<li><b>Edge block, exit node.</b> Identical hardware and firmware without the buzzer. Posts to the exit detection route
+and drives the exit servo.</li>
+<li><b>Routing block.</b> The FastAPI application in <span class="mono">main.py</span>: twenty-two REST routes and one
+WebSocket route, request validation, dependency injection of the database session and the current user, and the
+broadcast calls that publish every state change.</li>
+<li><b>Recognition block.</b> The ANPR pipeline and the YOLO/OCR detector wrapper: quality gate, four preprocessing
+variants, candidate scoring, burst voting and the two matching functions for entry and exit.</li>
+<li><b>Policy block.</b> The slot allocator: allocation, release, billing, cooldown, manual release and reset. This is
+the only block that changes the status of a bay.</li>
+<li><b>Data block.</b> SQLite through SQLAlchemy, five tables: users, parking slots, pre-registrations, sessions and
+detection events.</li>
+<li><b>Fan-out block.</b> The WebSocket manager, which keeps the set of live sockets and broadcasts typed events without
+blocking the request path.</li>
+<li><b>Presentation block.</b> The Next.js client: the Live Deck, the pre-booking page, the active pass, the receipts
+page and the operator console. It renders state and never computes occupancy.</li>
+</ol>
+
+<h2>9.2 Circuit diagram of a gate node</h2>
+
+<p>Figure&nbsp;8 shows the electrical connections for one gate node. The ESP32-CAM is powered from the 5&nbsp;V rail; the
+servo is powered from the same rail but through its own pair of leads, with the signal wire on GPIO&nbsp;12 and the
+grounds tied together. The optional buzzer sits on GPIO&nbsp;13 through a current-limiting resistor. The capacitor
+across the 5&nbsp;V rail is not decorative: it supplies the surge current when the servo starts moving and prevents the
+brown-out reset that otherwise looks like a firmware crash.</p>
+
+<figure class="w90">
+  <svg viewBox="0 0 760 400" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:auto;font-family:Palatino,serif">
+    <defs>
+      <marker id="dot" markerWidth="6" markerHeight="6" refX="3" refY="3"><circle cx="3" cy="3" r="2"/></marker>
+    </defs>
+    <!-- supply -->
+    <rect x="18" y="24" width="96" height="52" fill="#fff" stroke="#000"/>
+    <text x="66" y="45" font-size="13" text-anchor="middle">5 V 2 A</text>
+    <text x="66" y="62" font-size="13" text-anchor="middle">adapter</text>
+    <!-- rails -->
+    <line x1="114" y1="38" x2="700" y2="38" stroke="#000" stroke-width="1.4"/>
+    <text x="706" y="34" font-size="11">+5 V</text>
+    <line x1="114" y1="62" x2="700" y2="62" stroke="#000" stroke-width="1.4"/>
+    <text x="706" y="58" font-size="11">GND</text>
+
+    <!-- capacitor -->
+    <line x1="196" y1="38" x2="196" y2="80" stroke="#000"/>
+    <line x1="180" y1="80" x2="212" y2="80" stroke="#000"/>
+    <line x1="184" y1="88" x2="208" y2="88" stroke="#000"/>
+    <line x1="196" y1="88" x2="196" y2="110" stroke="#000"/>
+    <text x="220" y="88" font-size="11">470&#8211;1000 &#181;F</text>
+
+    <!-- ESP32-CAM -->
+    <rect x="250" y="120" width="210" height="150" fill="#fff" stroke="#000" stroke-width="1.2"/>
+    <text x="355" y="146" font-size="14" text-anchor="middle" font-weight="bold">ESP32-CAM</text>
+    <text x="355" y="164" font-size="11" text-anchor="middle">AI-Thinker &#183; OV2640</text>
+    <text x="355" y="181" font-size="11" text-anchor="middle">4 MB PSRAM &#183; Wi-Fi</text>
+    <line x1="262" y1="192" x2="448" y2="192" stroke="#000" stroke-dasharray="3 3"/>
+    <text x="270" y="208" font-size="10.5">5V &#183; GND &#183; GPIO12 &#183; GPIO13</text>
+    <text x="270" y="224" font-size="10.5">camera: Y2&#8230;Y9, XCLK, PCLK,</text>
+    <text x="270" y="238" font-size="10.5">VSYNC, HREF, SIOD, SIOC</text>
+    <text x="270" y="256" font-size="10.5">on-board, not wired</text>
+
+    <!-- board power taps -->
+    <line x1="270" y1="120" x2="270" y2="38" stroke="#000"/>
+    <circle cx="270" cy="38" r="3" fill="#000"/>
+    <line x1="300" y1="120" x2="300" y2="62" stroke="#000"/>
+    <circle cx="300" cy="62" r="3" fill="#000"/>
+
+    <!-- servo -->
+    <rect x="560" y="112" width="150" height="74" fill="#fff" stroke="#000"/>
+    <text x="635" y="136" font-size="13" text-anchor="middle" font-weight="bold">SG90 servo</text>
+    <text x="635" y="154" font-size="10.5" text-anchor="middle">0&#176; closed / 90&#176; open</text>
+    <text x="635" y="170" font-size="10.5" text-anchor="middle">boom arm on horn</text>
+    <!-- pwm -->
+    <path d="M460 230 H 520 V 146 H 560" fill="none" stroke="#000"/>
+    <text x="470" y="222" font-size="10.5">GPIO 12 (PWM)</text>
+    <!-- servo vcc/gnd -->
+    <line x1="560" y1="126" x2="520" y2="126" stroke="#000"/>
+    <line x1="520" y1="126" x2="520" y2="38" stroke="#000"/>
+    <circle cx="520" cy="38" r="3" fill="#000"/>
+    <line x1="560" y1="170" x2="540" y2="170" stroke="#000"/>
+    <line x1="540" y1="170" x2="540" y2="62" stroke="#000"/>
+    <circle cx="540" cy="62" r="3" fill="#000"/>
+
+    <!-- buzzer -->
+    <rect x="560" y="268" width="150" height="56" fill="#fff" stroke="#000"/>
+    <text x="635" y="290" font-size="12" text-anchor="middle">Active buzzer</text>
+    <text x="635" y="308" font-size="10.5" text-anchor="middle">(optional)</text>
+    <path d="M460 268 H 500 V 296 H 560" fill="none" stroke="#000"/>
+    <text x="466" y="262" font-size="10.5">GPIO 13</text>
+    <line x1="560" y1="316" x2="520" y2="316" stroke="#000"/>
+    <line x1="520" y1="316" x2="520" y2="62" stroke="#000" stroke-dasharray="3 3"/>
+
+    <!-- notes -->
+    <text x="18" y="300" font-size="12" font-weight="bold">Notes</text>
+    <text x="18" y="318" font-size="11">1. Common ground between board, servo and supply is mandatory.</text>
+    <text x="18" y="334" font-size="11">2. Do not power the servo from the 3.3 V pin of the board.</text>
+    <text x="18" y="350" font-size="11">3. Capacitor goes across +5 V and GND, close to the servo.</text>
+    <text x="18" y="366" font-size="11">4. The camera pin header is internal to the AI-Thinker board.</text>
+    <text x="18" y="382" font-size="11">5. Both gate nodes use this circuit; only the entry node has the buzzer.</text>
+  </svg>
+  <figcaption><span class="mk">@@FG08@@</span>Fig. 8 : Circuit diagram of one gate node</figcaption>
+</figure>
+
+<h2>9.3 Pin map</h2>
+
+<p>Table&nbsp;7 gives the pin assignment for both nodes. GPIO&nbsp;12 and GPIO&nbsp;13 are used because they are free on
+the AI-Thinker camera pinout: most other pins are consumed by the camera bus or by the flash interface, and choosing a
+pin that looks free in a generic ESP32 diagram is the most common wiring mistake on this board.</p>
+
+<table>
+<caption><span class="mk">@@TB07@@</span>Table 7 : Pin map of a gate node</caption>
+<thead><tr><th style="width:34%">Signal</th><th style="width:26%">ESP32-CAM pin</th><th>Notes</th></tr></thead>
+<tbody>
+<tr><td>Servo signal (orange / yellow)</td><td>GPIO 12</td><td>PWM control; 0&deg; closed, 90&deg; open</td></tr>
+<tr><td>Servo VCC (red)</td><td>5 V rail</td><td>Not 3.3 V &mdash; brown-outs and jitter otherwise</td></tr>
+<tr><td>Servo GND (brown / black)</td><td>GND</td><td>Must share ground with the ESP32-CAM</td></tr>
+<tr><td>Buzzer + (optional)</td><td>GPIO 13</td><td>Active buzzer; disabled by setting the pin to &minus;1</td></tr>
+<tr><td>Buzzer &minus;</td><td>GND</td><td>&mdash;</td></tr>
+<tr><td>Camera</td><td>Internal AI-Thinker header</td><td>Y2&hellip;Y9, XCLK, PCLK, VSYNC, HREF, SIOD, SIOC, PWDN, RESET</td></tr>
+</tbody>
+</table>
+
+<h2>9.4 Wiring tables</h2>
+
+<p>Tables 8 and 9 give the point-to-point wiring for the two nodes. The only difference between them is the buzzer, which
+is present at the entry gate so that a driver receives an audible confirmation, and omitted at the exit gate to keep
+the departure quiet.</p>
+
+<table>
+<caption><span class="mk">@@TB08@@</span>Table 8 : Wiring table &mdash; entry node</caption>
+<thead><tr><th style="width:26%">From</th><th style="width:26%">To</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>ESP32-CAM 5V</td><td>5 V rail</td><td>Board power</td></tr>
+<tr><td>ESP32-CAM GND</td><td>Common GND</td><td>Reference for the PWM signal</td></tr>
+<tr><td>GPIO 12</td><td>Servo signal</td><td>Barrier PWM</td></tr>
+<tr><td>5 V rail</td><td>Servo VCC</td><td>Torque supply</td></tr>
+<tr><td>Common GND</td><td>Servo GND</td><td>Return</td></tr>
+<tr><td>GPIO 13</td><td>Buzzer +</td><td>Confirmation chirp (optional)</td></tr>
+<tr><td>GND</td><td>Buzzer &minus;</td><td>Return</td></tr>
+</tbody>
+</table>
+
+<table>
+<caption><span class="mk">@@TB09@@</span>Table 9 : Wiring table &mdash; exit node</caption>
+<thead><tr><th style="width:26%">From</th><th style="width:26%">To</th><th>Purpose</th></tr></thead>
+<tbody>
+<tr><td>ESP32-CAM 5V</td><td>5 V rail</td><td>Board power</td></tr>
+<tr><td>ESP32-CAM GND</td><td>Common GND</td><td>Reference for the PWM signal</td></tr>
+<tr><td>GPIO 12</td><td>Servo signal</td><td>Barrier PWM</td></tr>
+<tr><td>5 V rail</td><td>Servo VCC</td><td>Torque supply</td></tr>
+<tr><td>Common GND</td><td>Servo GND</td><td>Return</td></tr>
+</tbody>
+</table>
+
+<h2>9.5 Power topology</h2>
+
+<p>The supply is a single 5&nbsp;V 2&nbsp;A adapter per node, distributed to the board and to the servo. The board's
+regulator supplies the camera; the servo is fed directly from the rail. The grounds are common. A 470&ndash;1000
+&micro;F electrolytic capacitor sits across the rail close to the servo to absorb the inrush when the arm starts moving.
+The measured consequence of omitting the capacitor is visible on the bench: the board resets at the moment the servo
+starts, the serial log restarts, and the barrier occasionally twitches instead of sweeping. It is a power problem that
+presents as a software problem, and it is listed first in the troubleshooting guide in the appendix.</p>
+
+<h2>9.6 Barrier control contract</h2>
+
+<p>The barrier is controlled by one boolean in the response, not by an action verb. The complete contract for an
+admitted entry is shown below; the exit response has the same shape with the released bay, the duration and the amount.</p>
+
+<pre>{
+  "status": "allocated",
+  "slot": "A2",
+  "open_barrier": true,
+  "barrier_action": "OPEN",
+  "trigger_buzzer": true
+}</pre>
+
+<p>The firmware decision is equally small. Anything other than an explicit true leaves the arm where it is:</p>
+
+<pre>bool open_barrier = doc["open_barrier"] | false;
+if (open_barrier || trigger_buzzer) {
+    openEntryBoomBarrier();      // 90 degrees -> 5000 ms -> 0 degrees
+} else {
+    // gate stays at 0 degrees
+}</pre>
+
+<p>Table&nbsp;10 states the outcomes for every status the backend can return. The table is the specification against
+which the firmware is reviewed, and it is the reason the system can be described as fail-closed: there is no row in
+which an error, a missing field or an unknown status results in an open barrier.</p>
+
+<table>
+<caption><span class="mk">@@TB10@@</span>Table 10 : Barrier control truth table</caption>
+<thead><tr><th style="width:26%">Backend outcome</th><th class="c" style="width:13%">open_barrier</th><th class="c" style="width:22%">Entry barrier</th><th class="c" style="width:22%">Exit barrier</th><th>Operator sees</th></tr></thead>
+<tbody>
+<tr><td>allocated (valid booking)</td><td class="c">true</td><td class="c">OPEN 90&deg; / 5 s</td><td class="c">&mdash;</td><td>Bay number, plate, confidence</td></tr>
+<tr><td>released (valid session)</td><td class="c">true</td><td class="c">&mdash;</td><td class="c">OPEN 90&deg; / 5 s</td><td>Duration and amount</td></tr>
+<tr><td>unauthorized</td><td class="c">false</td><td class="c">closed 0&deg;</td><td class="c">&mdash;</td><td>Plate plus alert</td></tr>
+<tr><td>no_plate</td><td class="c">false</td><td class="c">closed 0&deg;</td><td class="c">&mdash;</td><td>Failure stage and quality grade</td></tr>
+<tr><td>ambiguous</td><td class="c">false</td><td class="c">closed 0&deg;</td><td class="c">closed 0&deg;</td><td>Both candidate plates</td></tr>
+<tr><td>no_active_session</td><td class="c">false</td><td class="c">&mdash;</td><td class="c">closed 0&deg;</td><td>Plate plus alert</td></tr>
+<tr><td>parking_full</td><td class="c">false</td><td class="c">closed 0&deg;</td><td class="c">&mdash;</td><td>Full-lot alert</td></tr>
+<tr><td>already_allocated</td><td class="c">false</td><td class="c">closed 0&deg;</td><td class="c">&mdash;</td><td>Existing bay for that plate</td></tr>
+<tr><td>timeout / malformed / unknown</td><td class="c">absent</td><td class="c">closed 0&deg;</td><td class="c">closed 0&deg;</td><td>Camera marked offline after 30 s</td></tr>
+</tbody>
+</table>
+</div>
+
+<!-- ============================ CHAPTER 10 ============================ -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 10</span><span class="mk">@@C10@@</span>Proposed Methodology</h1>
+
+<p>This chapter describes how the work was carried out: the phases, the development method, the data design, the way the
+system was verified, and the protocol that must be followed to turn the recognition results from observations into
+measurements. The method was iterative rather than waterfall, but the phases are described in the order in which they
+were completed so that the dependencies between them are visible.</p>
+
+<h2>10.1 Development method</h2>
+
+<p>The project used a short-cycle iterative method. Each cycle addressed one vertical slice of the system &mdash;
+recognition, then allocation, then billing, then the operator view &mdash; and ended with the slice running end to end
+against the real database, not against a mock. This was chosen because the integration points were the risky part: a
+detector that works on a still image and an allocator that works on a test fixture can still fail when a real frame
+arrives while a booking is expiring. Building vertically meant that every week produced something demonstrable, and
+that the defect log grew from real integration rather than from code review.</p>
+
+<p>Two practices were adopted from the start and are visible in the repository. The first is a single source of truth
+for state: no component was allowed to cache occupancy, and every screen reads the server. The second is that every
+change to the allocation or billing logic had to be accompanied by a check in the automated suite, which is why the
+suite is written around the eight scenarios of Table&nbsp;14 rather than around units of code.</p>
+
+<h2>10.2 Phases and deliverables</h2>
+
+<p>Table&nbsp;11 lists the phases, the main activities in each, and the artefact that was produced. The phase boundaries
+are not arbitrary: each one ends with something that can be inspected or executed by someone other than its author.</p>
+
+<table>
+<caption><span class="mk">@@TB11@@</span>Table 11 : Methodology phases and deliverables</caption>
+<thead><tr><th class="c" style="width:7%">Phase</th><th style="width:24%">Focus</th><th style="width:40%">Main activities</th><th style="width:29%">Deliverable</th></tr></thead>
+<tbody>
+<tr><td class="c">P1</td><td>Problem definition</td><td>Field observation, literature survey, scope negotiation with the guide</td><td>Problem statement, objectives, scope boundary</td></tr>
+<tr><td class="c">P2</td><td>Architecture</td><td>Layer selection, state ownership, API surface, schema design</td><td>Context and component diagrams, database schema</td></tr>
+<tr><td class="c">P3</td><td>Recognition</td><td>Dataset collection, YOLO fine-tuning, variant design, OCR scoring, burst voting</td><td>Working pipeline with per-stage diagnostics</td></tr>
+<tr><td class="c">P4</td><td>Authorisation and allocation</td><td>Booking model, matching rules, allocator, cooldown, walk-in policy</td><td>Allocator with eight decision statuses</td></tr>
+<tr><td class="c">P5</td><td>Billing and audit</td><td>Tariff implementation, session closure, detection-event log</td><td>Receipt path and evidence table</td></tr>
+<tr><td class="c">P6</td><td>Client</td><td>Live deck, booking, pass, receipts, operator console, design tokens</td><td>Eight-page Next.js application</td></tr>
+<tr><td class="c">P7</td><td>Hardware</td><td>Node assembly, servo calibration, power topology, firmware</td><td>Two gate nodes and the barrier contract</td></tr>
+<tr><td class="c">P8</td><td>Verification</td><td>Automated suite, interface checks, defect fixing, regression checklist</td><td>15/15 automated checks, defect log</td></tr>
+<tr><td class="c">P9</td><td>Evaluation</td><td>Diagnostic capture, metric definitions, measurement protocol</td><td>Results chapter and pending-measurement list</td></tr>
+<tr><td class="c">P10</td><td>Documentation</td><td>Report, diagrams, appendix, demonstration script</td><td>This report</td></tr>
+</tbody>
+</table>
+
+<h2>10.3 Data design</h2>
+
+<p>The data model was designed before the recognition pipeline, because the decision the pipeline has to support is a
+database question: does this plate correspond to exactly one pending booking or active session? Five tables are
+enough. Figure&nbsp;9 shows the entity&ndash;relationship diagram. The session table is the occupancy authority; the
+detection-event table is the evidence authority; the booking table is the reservation authority; and the slot table is
+the inventory. The user table exists only to scope bookings and receipts to an account.</p>
+
+<figure class="w60">
+  <img src="../figures/fig-10.png" alt="Entity relationship diagram">
+  <figcaption><span class="mk">@@FG09@@</span>Fig. 9 : Entity&ndash;relationship diagram of the five-table schema</figcaption>
+</figure>
+
+<p>Three schema decisions are worth recording. The evidence column on a session stores the recognition evidence as a
+JSON string rather than a normalised structure, because it is written once and read for audit rather than queried by
+field. The booking carries a concrete slot identifier rather than a zone preference, because the driver is promised a
+specific bay and a promise that names a zone is not a promise. And the detection-event table stores the failure stage
+even when no plate was found, which is what makes it possible to say afterwards whether a refusal was caused by the
+camera, the detector or the matcher.</p>
+
+<h2>10.4 Verification strategy</h2>
+
+<p>Verification was organised in six levels, from a unit check of the billing formula to a dry run of the demonstration
+script. The automated suite starts its own backend on an isolated port with a temporary SQLite file, so it can be run
+during development without disturbing the demonstration data. The suite is deliberately written against the HTTP
+surface rather than against internal functions, because the contract between the firmware and the server is the part
+that has to be right at the gate. The levels and the results are reported in Chapter&nbsp;12.</p>
+
+<h2>10.5 Measurement protocol</h2>
+
+<p>Recognition accuracy and latency are properties that must be measured, not asserted, and they have not yet been
+measured on this build. The protocol is fixed here so that the numbers, when they are produced, are comparable and
+honest. It follows the usual practice in the ANPR literature of reporting per condition rather than as a single average
+[3].</p>
+
+<p><b>Sampling.</b> Use at least five distinct plates, including two that differ by one character, so that the ambiguity
+rule is exercised. For each plate, capture frames under four conditions: daylight frontal, low light, angled at about
+30&deg;, and motion blur.</p>
+
+<p><b>Volume.</b> At least ten frames per plate&ndash;condition pair, giving at least two hundred frames in total, with a
+ground-truth CSV recording the frame, the true plate and the condition.</p>
+
+<p><b>Execution.</b> Post each frame to the detection endpoint with a known booking state, or run the pipeline offline,
+and log the status, the selected plate, the confidence and the failure stage for every frame.</p>
+
+<p><b>Metrics.</b> Plate detection rate (frames with a plate box divided by frames containing a plate); exact recognition
+rate (readings exactly equal to ground truth divided by frames with a detected plate); matcher-accepted rate (readings
+accepted as the correct vehicle divided by frames with a detected plate); false admit and false reject rates over the
+decision outcomes; and end-to-end latency from the start of the POST to the JSON response, reported as p50 and p95 over
+at least thirty runs with the hardware stated.</p>
+
+<p><b>Honesty rule.</b> A metric that has not been produced by this protocol is reported as not measured, not as an
+estimate. The two diagnostic records in Chapter&nbsp;12 are single observations reproduced from the bench; they are
+labelled as such and are not presented as a benchmark.</p>
+
+<h2>10.6 Risk management</h2>
+
+<p>The principal risks were recognition quality on a low-cost camera, power instability at the servo, and dependency
+drift in the Python environment. The first was mitigated by designing the refusal path before tuning the recognition
+pipeline, so that a poor read produces a defined refusal rather than an undefined failure. The second was mitigated by
+separating the servo supply and adding the capacitor, and by writing the bench checklist in the appendix. The third was
+mitigated by pinning the backend interpreter in the start script; the remaining packaging gap (easyocr and ultralytics
+absent from <span class="mono">requirements.txt</span>) is recorded as an open defect rather than dismissed.</p>
+</div>

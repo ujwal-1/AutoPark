@@ -1,0 +1,618 @@
+<!-- ============================ CHAPTER 1 ============================= -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 1</span><span class="mk">@@C01@@</span>Introduction and Organization of the Project Report</h1>
+
+<p>Parking is one of the few everyday engineering problems that is solved almost everywhere by adding hardware rather
+than by using information that already exists. A driver who reaches a gate has to be told, by a sensor in every bay or
+by a person in a cabin, whether a space is free. A facility owner who wants to know how full the lot is must either
+walk it or instrument it. Both answers cost money in proportion to the number of bays, and both stop working when the
+lot is extended, because every new space brings its own device, its own cable and its own failure mode.</p>
+
+<p>This project starts from a different observation: a parking bay is free if and only if a vehicle has entered the
+facility and has not yet left it. That sentence is the whole design. If the entry and the exit of a lot are observed
+reliably, the state of every bay inside the lot can be derived from those two observations, and no device is needed
+inside the lot at all. AutoPark is an implementation of that idea. Two ESP32-CAM nodes watch the entry and the exit
+gate. Each posts a JPEG frame every five seconds to a FastAPI backend, which locates the number plate with a YOLOv11
+detector, reads it with EasyOCR, matches it against bookings or active sessions, opens an SG90 boom barrier when the
+evidence is strong enough, and writes every decision &mdash; including every refusal &mdash; to an audit table. The
+occupancy of the six bays is then a query over the session table, not a measurement.</p>
+
+<p>The project is deliberately a complete system rather than a recognition demonstration. A driver can register,
+pre-book a specific bay, arrive, see the assigned bay on a pass screen, leave, and receive an itemised receipt. An
+operator can watch the facility plan, inspect why a particular vehicle was refused, release a bay that has become
+stuck because its exit plate was unreadable, and reset the facility between demonstrations. A simulator reproduces
+the camera traffic through the same HTTP endpoints, so the whole system can be demonstrated and tested without the
+physical rig. The interesting engineering is therefore not the detector or the OCR engine, both of which are standard
+components, but the decision policy that sits between them and the barrier: when the evidence is insufficient, the
+system must refuse, because one wrong admission corrupts the occupancy state, the bill and the audit trail at the
+same time.</p>
+
+<p>The work was carried out over the sixth and seventh semesters as a Phase&ndash;1 / Phase&ndash;2 pair. Phase&ndash;1
+established the problem, the survey, the architecture and the recognition pipeline. Phase&ndash;2 completed the
+authorisation policy, walk-in allocation, the operator console, the billing path, the automated verification suite and
+the hardware rig, and produced the measurements and the honest list of what remains unmeasured that appear in
+Chapter&nbsp;12.</p>
+
+<h2>1.1 Organization of the project report</h2>
+
+<p>The report is organised in the sequence prescribed for the seventh-semester Phase&ndash;2 submission. It begins with
+the front matter &mdash; certificate, declaration, acknowledgement, contents, lists of figures and tables,
+nomenclature and abstract &mdash; and then proceeds through fifteen chapters and the required back matter.</p>
+
+<p><b>Chapter 1</b> introduces the problem setting, the proposition and the scope of the work, and describes how the
+report is organized. <b>Chapter 2</b> states the objectives in a form that can be verified, together with the aim,
+the goal and the sequence of steps by which the goal is reached. <b>Chapter 3</b> records the motivation for
+undertaking the work and defines the problem statement precisely, including what has been deliberately excluded.
+<b>Chapter 4</b> surveys the three bodies of literature on which the project builds &mdash; occupancy sensing,
+automatic number plate recognition, and low-cost edge vision with actuation &mdash; and isolates the research gaps in a
+comparative table. <b>Chapter 5</b> explains the design concepts: the layered edge&ndash;gateway architecture, the
+derived-state model of occupancy, the refusal-by-default authorisation policy, OCR-aware string matching and
+fail-closed actuation.</p>
+
+<p><b>Chapter 6</b> lists the hardware and software tools actually used, with the version of each component as it appears
+in the repository. <b>Chapter 7</b> presents the algorithms, flow charts, data-flow diagrams and state machines that
+implement the design. <b>Chapter 8</b> explains the working principle of the system as a single narrative, from the
+capture of a frame to the movement of the barrier. <b>Chapter 9</b> gives the block diagram, the circuit diagram of a
+gate node, the pin map, the wiring tables and the power topology. <b>Chapter 10</b> describes the methodology: the
+phases, the development method, the verification strategy and the measurement protocol. <b>Chapter 11</b> walks through
+the overall working of the system for the four flows that matter &mdash; pre-booked entry, walk-in entry, exit and
+operator exception handling &mdash; with sequence diagrams.</p>
+
+<p><b>Chapter 12</b> reports the results: the automated test suite, the interface checks, the defect log, two diagnostic
+records captured on the bench, the engineering metrics measured from the repository, the analytical scaling argument,
+a comparison with related approaches, and an explicit list of measurements that have not yet been made.
+<b>Chapter 13</b> discusses applications, advantages and limitations. <b>Chapter 14</b> states the outcome of the
+project against each objective and records the reflection notes of the team. <b>Chapter 15</b> concludes, sets out the
+scope for future work, and gives the month-wise workflow of the project.</p>
+
+<p>The back matter contains the references in IEEE format, an appendix with code excerpts, the API reference, the bill
+of materials, the assembly and bench procedures, the PO/PSO mapping, the project cost estimate, and the required
+declarations on papers, competitions, funding and patents. Every reference cited in the body appears in the reference
+list, and every reference in the list is cited in the body.</p>
+</div>
+
+<!-- ============================ CHAPTER 2 ============================= -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 2</span><span class="mk">@@C02@@</span>Objective / Aim / Goal of the Project Work</h1>
+
+<p>The objectives below are written so that each one can be checked against something observable &mdash; a test result,
+an API response, a database row or an inspection of the code &mdash; rather than against an intention. Each objective
+states what is to be achieved and, in one sentence, how the achievement is evidenced. The evidence is repeated in
+Table&nbsp;1 and again, with outcomes, in Table&nbsp;23 of Chapter&nbsp;14.</p>
+
+<h2>2.1 Objectives</h2>
+
+<p><b>Objective 1 &mdash; Detect and read vehicle plates from gate frames.</b> Build a recognition pipeline that accepts a
+JPEG frame from a low-cost camera, locates the plate region, reads the characters and returns a ranked list of
+candidates with a confidence for each, or an explicit failure stage when no reading is possible. Evidence: the
+pipeline runs end to end and exposes per-stage diagnostics through <span class="mono">/api/anpr/diagnostics</span>.</p>
+
+<p><b>Objective 2 &mdash; Authorise pre-booked and walk-in vehicles.</b> Admit a vehicle whose plate matches exactly one
+pending booking, and admit an unreserved vehicle by allocating the next free bay automatically, while refusing when
+the plate is unknown and walk-in admission is disabled. Evidence: simulated entry tests for booked, walk-in and
+unknown plates.</p>
+
+<p><b>Objective 3 &mdash; Honour the bay that the driver booked.</b> When a booking names a specific bay, the entry
+allocator must bind that bay if it is still free, and must not silently substitute a different one. Evidence: an
+executed test in which bay B3 is requested at booking and B3 is the bay allocated at entry.</p>
+
+<p><b>Objective 4 &mdash; Derive occupancy from gate events.</b> The status of a bay must change only as a consequence of
+a session being created or closed, never as a result of a sensor reading inside the lot. Evidence: layout and summary
+responses remain consistent with the session table after every entry and exit.</p>
+
+<p><b>Objective 5 &mdash; Control a physical barrier automatically.</b> Drive an SG90 boom barrier from 0&deg; to
+90&deg; and back after five seconds, but only when the backend returns an explicit authorisation for that gate.
+Evidence: the response contract and the firmware truth table; the bench actuation test is listed as pending in
+Chapter&nbsp;12 rather than claimed.</p>
+
+<p><b>Objective 6 &mdash; Provide real-time visibility.</b> Broadcast every state transition over a single WebSocket
+channel so that the driver dashboard, the pass screen and the operator console update without a page refresh, and
+recover correctly after a dropped connection. Evidence: events observed simultaneously on three clients.</p>
+
+<p><b>Objective 7 &mdash; Produce auditable billing.</b> Compute the charge at exit from the session duration using a
+single server-side tariff (&#8377;30 for the first hour and &#8377;20 for every additional started hour), and present
+it as an itemised receipt that cannot be edited by the client. Evidence: tests at the sixty-minute and sixty-one-minute
+boundaries.</p>
+
+<p><b>Objective 8 &mdash; Allow demonstration without hardware.</b> Provide simulator endpoints that create real sessions,
+real bills and real audit rows through the same code paths as the cameras, so that the system can be demonstrated and
+regression-tested on a laptop. Evidence: the entire automated suite runs through the simulator.</p>
+
+<table>
+<caption><span class="mk">@@TB01@@</span>Table 1 : Objectives of the project and how each is evidenced</caption>
+<thead><tr><th class="c" style="width:7%">#</th><th style="width:31%">Objective</th><th style="width:34%">How it is met in the build</th><th style="width:28%">How it is evidenced</th></tr></thead>
+<tbody>
+<tr><td class="c">O1</td><td>Detect and read plates from gate frames</td><td>YOLOv11 plate detector, four preprocessing variants, three-frame burst voting</td><td>Working pipeline; per-stage diagnostics API</td></tr>
+<tr><td class="c">O2</td><td>Authorise pre-booked and walk-in vehicles</td><td>Unique match against pending bookings, or dynamic allocation of the first free bay</td><td>Simulated walk-in and booking tests; full-lot refusal</td></tr>
+<tr><td class="c">O3</td><td>Honour the bay chosen at booking</td><td>Booking binds a slot identifier; the allocator reads it before falling back</td><td>Executed test: B3 requested, B3 allocated</td></tr>
+<tr><td class="c">O4</td><td>Derive occupancy from gate events</td><td>Bay state machine driven only by session creation and closure</td><td>Layout and summary consistent after entry and exit</td></tr>
+<tr><td class="c">O5</td><td>Control a physical barrier</td><td>SG90 servo, 0&deg;/90&deg;, five-second hold, gated on the backend flag</td><td>Contract and truth table; bench test pending</td></tr>
+<tr><td class="c">O6</td><td>Provide real-time visibility</td><td>Single WebSocket channel with snapshot-on-reconnect</td><td>Live updates on three clients without refresh</td></tr>
+<tr><td class="c">O7</td><td>Produce auditable billing</td><td>Duration computed at exit; &#8377;30 first hour, +&#8377;20 per started hour</td><td>Receipts page and exit response verified</td></tr>
+<tr><td class="c">O8</td><td>Demonstrate without hardware</td><td>Hardware-in-the-loop simulator calling the same endpoints</td><td>Authorised and unauthorised simulations, reset flow</td></tr>
+</tbody>
+</table>
+
+<h2>2.2 Aim of the project</h2>
+
+<p>To design, implement and validate a smart parking system in which the occupancy of a multi-bay facility is inferred
+from events observed at the entry and exit gates rather than measured by a sensor in every bay, while preserving
+accurate availability information, controlled vehicle access and an auditable billing record.</p>
+
+<h2>2.3 Goal of the project</h2>
+
+<p>The goal is a working six-bay prototype, deployed on a facility LAN, in which a driver can reserve a bay in advance
+or arrive without one, a camera at each gate reads the plate, the server decides whether the barrier should open, the
+bay is bound and released correctly, a charge is computed at exit, and every decision &mdash; admit or refuse &mdash;
+can be reconstructed afterwards from stored evidence. The success criterion is not recognition accuracy on a
+benchmark; it is that the substitution of two gate cameras for six bay sensors holds together as a system, with the
+costs of the substitution stated plainly.</p>
+
+<h2>2.4 How the goal is achieved</h2>
+
+<ol>
+<li><b>Define the problem and the boundary.</b> Establish what is in scope (one lot, two gates, pre-booking, walk-in
+entry, billing, monitoring) and what is not (payment processing, multi-lot management, per-bay sensors), and state the
+reasons.</li>
+<li><b>Survey the literature and isolate the gap.</b> Compare per-bay sensing, overhead vision and gate-based
+recognition; examine ANPR pipelines and their evaluation methods; conclude that gate-only occupancy inference is
+practised commercially but rarely analysed as an engineering design.</li>
+<li><b>Design the architecture and the decision policy.</b> Place all state on the server, reduce the edge device to a
+sensor and an actuator, define the occupancy invariant, and specify a refusal-by-default policy with numeric
+thresholds for confidence, ambiguity and duplicate suppression.</li>
+<li><b>Implement the pipeline and the service.</b> Build the recognition pipeline, the allocator, the billing engine,
+the REST and WebSocket surface and the web client; integrate the ESP32-CAM firmware and the SG90 barrier.</li>
+<li><b>Verify with an automated suite and a bench rig.</b> Exercise booking, entry, duplicate suppression, exit,
+cancellation, refusal, ambiguity and both tariff boundaries against an isolated database; run the interface checks;
+and list the hardware checks that remain.</li>
+<li><b>Report honestly and hand over.</b> Document the defects found and fixed, the metrics that were measured and the
+ones that were not, the limitations and the roadmap, so that the next batch can continue the work from a truthful
+baseline.</li>
+</ol>
+</div>
+
+<!-- ============================ CHAPTER 3 ============================= -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 3</span><span class="mk">@@C03@@</span>Motivation and Problem Statement Definition</h1>
+
+<h2>3.1 Motivation</h2>
+
+<p>The motivation for the project came from watching the same pattern repeat in the streets around the college and in
+the commercial areas of Bengaluru. Cars slow down at every side road looking for a space, queue behind a barrier while
+an attendant writes a number on a slip, and then circle again on the way out because nobody recorded when they came
+in. The inefficiency is visible, the data to fix it exists, and the hardware normally proposed to capture that data is
+disproportionate to the size of the lot.</p>
+
+<p><b>Driver experience.</b> Arriving without knowing whether a bay is free causes circling, delay and congestion. The
+classical study of cruising for parking estimated that a substantial share of traffic in congested commercial
+districts &mdash; of the order of thirty per cent in the districts studied &mdash; consists of vehicles searching for a
+space [2]. A driver who knows before turning in that a bay is held for the vehicle removes most of that search, and a
+driver who arrives without a booking benefits from being told immediately which bay has been assigned.</p>
+
+<p><b>Operator economics.</b> In a sensor-per-bay design, every additional bay adds a device, a power drop, a mounting
+point, a cable run and one more thing that can fail. The cost of the sensing layer therefore grows linearly with
+capacity, and retrofitting an existing unmonitored lot is invasive because cabling has to reach every space. A
+gate-only design adds no marginal sensing hardware per bay: the second camera is the last camera, whatever the size of
+the lot. For a department lot of six bays the difference is modest in absolute terms, but the shape of the cost curve
+is what matters, and it is the property the project set out to demonstrate.</p>
+
+<p><b>Accountability.</b> A plate-indexed audit trail links every entry, exit and charge to a vehicle. A manned gate
+produces a paper slip that is easy to lose and easy to dispute; a gate that records the plate, the confidence, the
+failure stage and the decision produces evidence that can be examined after the fact. This matters not only for
+revenue but for the safety of the decision: when a vehicle is refused, the operator should be able to see whether the
+camera was blurred, whether the plate was read but unmatched, or whether two bookings were too similar to separate.</p>
+
+<p><b>Practicality for a campus.</b> A six-bay pilot is representative of a department lot, is buildable with
+hobby-grade hardware within an academic budget, and exercises every part of a real system: authorisation, actuation,
+billing and monitoring. A larger pilot would have demonstrated the same properties at greater cost and with more
+opportunity for the demonstration to fail for reasons unrelated to the design.</p>
+
+<p><b>Academic motivation.</b> Most student projects in this area stop at a detector that draws a box around a plate.
+The part that is genuinely difficult &mdash; deciding what to do when the detector is not sure &mdash; is usually
+skipped. The team was interested in that part: in treating recognition as evidence rather than as an answer, and in
+building a system whose failure behaviour is as defensible as its success behaviour.</p>
+
+<h2>3.2 Problem statement</h2>
+
+<p>Small and medium parking facilities cannot afford to instrument every bay, yet drivers and operators need live
+availability, controlled access and an auditable record of who parked where and for how long. The two remedies
+available today are both unsatisfactory at this scale. Per-bay sensors give accurate occupancy but require one device,
+one power drop and one mounting point per bay, so capital and maintenance cost grow linearly with capacity and
+retrofitting an existing lot is disruptive. Fully manual gates are cheap to install but cannot provide live
+availability, an audit trail or automated billing, and they depend on an attendant being present.</p>
+
+<p>There is therefore a gap for a system that provides live bay availability, automated access control and auditable
+billing, using sensing hardware whose cost does not scale with the number of bays, and whose behaviour when a plate
+cannot be read is defined rather than accidental.</p>
+
+<p>Formally, the system to be built must satisfy the following. Given a facility of <i>n</i> bays served by exactly two
+camera nodes, one at the entry gate and one at the exit gate, the system must maintain a bay-state function
+<i>S</i>(<i>t</i>) that is correct with respect to the sequence of admitted entries and completed exits; must admit a
+vehicle only when the plate evidence resolves to exactly one authorised vehicle or when an unreserved bay can be
+allocated; must refuse, with a recorded reason, in every other case; must compute a charge from the interval between
+admission and release; and must expose the resulting state to drivers and operators within two seconds of the change.
+The sensing cost of the system must be independent of <i>n</i>.</p>
+
+<h2>3.3 Scope and boundary</h2>
+
+<p>Two capabilities that a commercial product would require are deliberately excluded, and the reason for each
+exclusion is stated so that the boundary is a design decision rather than an omission. Unreserved walk-in entry, by
+contrast, is fully integrated: it is part of the problem rather than an extension, because a real lot cannot operate
+on reservations alone.</p>
+
+<table>
+<caption><span class="mk">@@TB02@@</span>Table 2 : Capabilities deliberately kept out of scope</caption>
+<thead><tr><th style="width:26%">Excluded</th><th>Reason for exclusion</th></tr></thead>
+<tbody>
+<tr><td>Online payment</td><td>Adds a payment-gateway integration and a compliance surface that has no bearing on the central hypothesis. The bill is computed, itemised and stored; no money is moved.</td></tr>
+<tr><td>Multi-level and multi-lot management</td><td>The architecture generalises, but a second lot multiplies hardware and does not test the claim. The schema currently has no lot identifier; adding one is listed as future work.</td></tr>
+<tr><td>Native mobile application</td><td>The web client is responsive and usable on a phone in a browser; a native client is a packaging exercise rather than an engineering contribution.</td></tr>
+<tr><td>Per-bay sensors</td><td>Excluded by design &mdash; the substitution of gate observation for per-bay measurement is the hypothesis under test.</td></tr>
+<tr><td>Vehicle make, colour and damage capture</td><td>Not required for authorisation or billing, and would add a second model and a privacy surface without changing the occupancy argument.</td></tr>
+</tbody>
+</table>
+
+<h2>3.4 Terms used in this report</h2>
+
+<p><b>Bay.</b> A single parking space, identified by a slot number such as A2. The pilot has six: A1&ndash;A3 in zone A
+and B1&ndash;B3 in zone B.</p>
+
+<p><b>Booking (pre-registration).</b> A reservation made before arrival. It binds a specific bay and expires at a stated
+time. A booking holds the bay: the bay is not offered to anyone else while the booking is pending.</p>
+
+<p><b>Session.</b> The record of a vehicle being inside the facility. It is created at entry and closed at exit, and it
+carries the entry time, the exit time, the bay, the plate and the evidence behind the admission decision.</p>
+
+<p><b>Occupancy.</b> In this report, a derived property: a bay is occupied if and only if an active session references
+it. It is never read from a sensor inside the lot.</p>
+
+<p><b>Candidate.</b> One plate string produced by the OCR stage, together with a confidence and the preprocessing
+variant that produced it.</p>
+
+<p><b>Refusal.</b> Any decision that leaves the barrier closed. Every refusal carries a machine-readable status such as
+<span class="mono">no_plate</span>, <span class="mono">unauthorized</span>, <span class="mono">ambiguous</span>,
+<span class="mono">already_allocated</span> or <span class="mono">parking_full</span>.</p>
+</div>
+
+<!-- ============================ CHAPTER 4 ============================= -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 4</span><span class="mk">@@C04@@</span>Literature Survey and Gaps</h1>
+
+<p>This chapter positions AutoPark against the bodies of work it builds on: how parking occupancy is sensed, how number
+plates are recognised, how low-cost edge devices are used for vision and actuation, how real-time monitoring
+interfaces are built, and how access control and audit are handled in a web application. The aim is not to catalogue
+the literature but to isolate the gap that the project addresses, and to show that each design choice has a
+justification in prior work.</p>
+
+<h2>4.1 Occupancy sensing in smart parking</h2>
+
+<p>Lin, Rivano and Le Mou&euml;l classify smart parking systems by the sensing layer used to detect the presence of a
+vehicle [1]. The dominant approach is a sensor per bay: an ultrasonic, magnetometer, infrared or inductive-loop device
+mounted in or beside each space, reporting occupancy to a gateway. These systems are accurate because they measure the
+state of each bay directly, and commercial deployments are common in multi-storey facilities. Rajabioun and Ioannou
+take the complementary approach of predicting availability from historical and spatio-temporal data rather than
+measuring it [25], which is useful for advising a driver before the journey but does not replace access control.</p>
+
+<p>The economic structure of the per-bay approach is the problem. Every bay requires one device, one power drop, one
+mounting point and one more thing that can fail. For a facility with <i>n</i> bays, the sensing layer grows as
+<i>O</i>(<i>n</i>) in capital cost, installation time and maintenance. Retrofitting an existing unmonitored lot is
+invasive, because cabling must reach every space.</p>
+
+<p>A second family of designs uses vision from a vantage point: a camera overlooking a row or a level, with spaces
+delineated in the image and a classifier deciding occupancy per region. This amortises hardware over many bays, but
+each camera must see the spaces it serves, so coverage still scales with the geometry of the lot, and occlusion by
+large vehicles degrades accuracy. Camera-based occupancy systems also carry privacy and storage costs because they
+record the interior of the facility continuously.</p>
+
+<p>Gate-based recognition, the approach taken here, sits between these families. The camera observes only the entrance
+and the exit, so two devices serve an arbitrary number of bays. Occupancy is not measured at all; it is inferred from
+the sequence of entries and exits. This is the same principle used by ticket-based and barrier-controlled commercial
+car parks, where the ticket count, rather than a sensor, is the occupancy record. The contribution of this project is
+to replace the ticket with an automatically recognised plate, which makes the record auditable without a human at the
+gate.</p>
+
+<h2>4.2 Automatic number plate recognition</h2>
+
+<p>Automatic number plate recognition has a long literature; Du et al. survey the classical pipeline of plate
+localisation, character segmentation and character recognition [3]. Classical systems rely on edge statistics,
+morphology and colour cues to find the plate, then on template matching or a small classifier per character. They work
+well under controlled illumination and fixed camera geometry, and degrade quickly when the plate is small, skewed or
+unevenly lit.</p>
+
+<p>Two developments changed the practical design. First, single-stage object detectors such as YOLO reframed
+localisation as a regression problem solved in one network pass, giving real-time detection at modest cost [4].
+Multi-scale variants such as SSD [21] and later members of the YOLO family [26] improved the detection of small
+objects, which is exactly the regime of a plate seen from a gate camera. Modern plate-specific models, including
+YOLO11 [5], are accurate enough to replace the hand-crafted localisation stage entirely; Laroca et al. demonstrated a
+complete real-time ALPR pipeline built on a YOLO detector [19], and Silva and Jung extended the idea to unconstrained
+scenarios with a segmentation-free recognition network [20].</p>
+
+<p>Second, deep-learning OCR engines removed the need for explicit character segmentation. Sequence models trained with
+connectionist temporal classification [24] over recurrent networks [23] made it possible to decode a whole text line
+without cutting it into characters; CRNN [28] and the EAST detector [27] are the reference designs for scene text.
+EasyOCR [6] packages these ideas behind a simple interface and returns a confidence per token, which suits an
+unconstrained scene such as a plate photographed by a low-cost camera. Underlying all of these are convolutional
+feature extractors of the VGG [22] and residual families, and the deep-learning frameworks and annotated datasets that
+made them reproducible [17], [18].</p>
+
+<p>A recognition pipeline assembled from these parts is accurate but not certain. That distinction matters for access
+control: a character error rate of a few per cent is acceptable for a toll audit, but a single wrong admit corrupts the
+occupancy state of a lot. The literature on ANPR evaluation therefore reports precision and recall per condition
+rather than a single accuracy figure, because performance is strongly condition-dependent [3].</p>
+
+<p>The design consequence adopted in this project is to treat recognition as evidence rather than as an answer.
+Multiple preprocessing variants of the same crop are read independently, the readings are scored for confidence and
+agreement, several frames are accumulated, and the resulting candidates are compared against known registrations using
+a string-distance metric [8] rather than a single exact comparison. When the evidence does not resolve to one
+registration, the system refuses.</p>
+
+<h2>4.3 Low-cost edge vision and actuation</h2>
+
+<p>The ESP32 family provides a microcontroller with integrated Wi-Fi at a price point that makes a camera node
+disposable [9]. The ESP32-CAM variant adds an OV2640 sensor and PSRAM, enough to capture and upload a VGA JPEG without
+a companion processor. This class of device is widely used in IoT prototypes because it removes the need for a
+single-board computer at the edge: capture, transport and actuation can all run on one microcontroller.</p>
+
+<p>Actuation at the gate is normally a barrier arm driven by a DC motor, a solenoid or a hobby servo. A servo is
+attractive for a prototype because it is position-controlled: the controller commands an angle rather than a
+direction, and no limit switches are needed to stop the arm. The SG90 class of micro-servo is cheap and adequate for a
+lightweight arm, at the cost of torque and of having no position feedback to the controller [10].</p>
+
+<p>The architectural lesson taken from this literature is that the edge device should be a sensor and an actuator, not
+a decision maker. Deployments that place authorisation logic on the camera node struggle to keep state consistent
+across nodes, because two nodes can disagree about the state of the lot and there is no shared transaction. AutoPark
+therefore keeps all decisions on the server and reduces the firmware to capture, upload, and move the arm when told.</p>
+
+<h2>4.4 Real-time monitoring interfaces</h2>
+
+<p>Operator dashboards need to reflect state changes within a second or two. The classical solution is client polling
+of a REST endpoint [15], which is simple but generates redundant requests and introduces a polling interval of
+latency. Server-sent events and WebSockets invert the direction: the server pushes each transition to connected
+clients. For a small number of screens and infrequent events, a single WebSocket channel is both simpler to operate
+than a message broker and more responsive than polling.</p>
+
+<p>The relevant design detail, often omitted in student projects, is recovery. A WebSocket stream does not replay
+missed messages, so a client that reconnects after a network drop must re-read a snapshot before resuming the stream.
+This project implements that snapshot-then-stream pattern, and it is the reason the dashboard can be trusted after a
+laptop sleeps or a Wi-Fi handover.</p>
+
+<h2>4.5 Access control, identity and audit</h2>
+
+<p>The web tier of a parking product is a conventional authenticated application. JSON Web Tokens [14] with a
+server-side signature provide stateless session identity, and password storage follows the OWASP recommendation of a
+slow, salted hash [16]. The framework choices &mdash; FastAPI for a typed HTTP API [11], SQLAlchemy for the
+persistence layer [13], OpenCV for image processing [7] and Next.js for the client [12] &mdash; are unremarkable; they
+are selected because they minimise the code needed for the parts of the system that are not the contribution.</p>
+
+<p>The audit requirement is more interesting. A gate system must be able to answer, after the fact, why a particular
+vehicle was admitted or refused. That requires recording the evidence behind each decision, not only its outcome. This
+is why the schema contains a detection-event table separate from the session table, and why the recognition pipeline
+exposes per-stage diagnostics rather than a single success flag.</p>
+
+<h2>4.6 Literature survey table</h2>
+
+<p>Table&nbsp;3 summarises the works that shaped the design. The final two columns record what each work contributes and
+where it stops, because the gaps column is what the project is built on.</p>
+
+<table>
+<caption><span class="mk">@@TB03@@</span>Table 3 : Literature survey &mdash; methods, advantages and gaps</caption>
+<thead><tr>
+<th class="c" style="width:5%">Ref.</th>
+<th style="width:14%">Authors et al.</th>
+<th style="width:23%">Title / focus</th>
+<th style="width:20%">Method and contribution</th>
+<th style="width:18%">Advantages</th>
+<th style="width:20%">Disadvantages / gaps</th>
+</tr></thead>
+<tbody>
+<tr><td class="c">[1]</td><td>Lin, Rivano, Le Mou&euml;l, 2017</td><td>A survey of smart parking solutions</td><td>Taxonomy of sensing, communication and application layers</td><td>Comprehensive map of the field; cost structure made explicit</td><td>No gate-only occupancy model; failure behaviour not analysed</td></tr>
+<tr><td class="c">[2]</td><td>Shoup, 2006</td><td>Cruising for parking</td><td>Empirical study of search traffic in commercial districts</td><td>Quantifies the cost of not knowing availability</td><td>Policy study, not a system design</td></tr>
+<tr><td class="c">[3]</td><td>Du, Ibrahim, Shehata, Badawy, 2013</td><td>ALPR: a state-of-the-art review</td><td>Classical localisation, segmentation and recognition pipeline</td><td>Clear account of condition dependence</td><td>Pre-deep-learning; no decision policy</td></tr>
+<tr><td class="c">[4]</td><td>Redmon et al., 2016</td><td>You only look once</td><td>Single-stage detection as regression</td><td>Real-time detection at modest cost</td><td>Weak on small objects; no plate specialisation</td></tr>
+<tr><td class="c">[5]</td><td>Ultralytics, 2024</td><td>YOLO11 documentation and models</td><td>Current detector family with training recipes</td><td>Strong accuracy/speed trade-off; easy fine-tuning</td><td>Requires a labelled plate dataset</td></tr>
+<tr><td class="c">[6]</td><td>Jaided AI</td><td>EasyOCR</td><td>Scene-text detection and recognition with per-token confidence</td><td>No character segmentation; 80+ languages</td><td>Weak on low-resolution, blurred crops</td></tr>
+<tr><td class="c">[7]</td><td>Bradski, 2000</td><td>The OpenCV library</td><td>Image processing primitives</td><td>Fast, portable; thresholding and filtering</td><td>Library, not a method</td></tr>
+<tr><td class="c">[8]</td><td>Levenshtein, 1966</td><td>Binary codes capable of correcting deletions and insertions</td><td>Edit-distance metric</td><td>Principled tolerance of single-character errors</td><td>No notion of visual confusion or confidence</td></tr>
+<tr><td class="c">[9]</td><td>Espressif, 2023</td><td>ESP32 series datasheet</td><td>Microcontroller with integrated Wi-Fi</td><td>Cheap, capable edge node</td><td>Limited RAM; no secure element by default</td></tr>
+<tr><td class="c">[10]</td><td>TowerPro</td><td>SG90 micro-servo datasheet</td><td>Position-controlled hobby servo</td><td>Angle commanded directly; no limit switches</td><td>No position feedback; limited torque</td></tr>
+<tr><td class="c">[11]</td><td>Ram&iacute;rez</td><td>FastAPI documentation</td><td>Typed Python HTTP framework</td><td>Automatic validation and OpenAPI docs</td><td>Single-process concurrency model</td></tr>
+<tr><td class="c">[12]</td><td>Vercel</td><td>Next.js documentation</td><td>React framework with App Router</td><td>Server/client boundaries; fast iteration</td><td>Client state must be reconciled with the server</td></tr>
+<tr><td class="c">[13]</td><td>SQLAlchemy</td><td>SQLAlchemy 2.0 documentation</td><td>ORM and query layer</td><td>Portable models; transactions</td><td>SQLite write concurrency limits</td></tr>
+<tr><td class="c">[14]</td><td>Jones, Bradley, Sakimura, 2015</td><td>JSON Web Token (RFC 7519)</td><td>Signed stateless identity token</td><td>Simple for browsers and devices</td><td>No revocation without extra infrastructure</td></tr>
+<tr><td class="c">[15]</td><td>Fielding, 2000</td><td>Architectural styles for network-based software</td><td>REST architectural constraints</td><td>Resource-oriented, cacheable API design</td><td>Polling-based updates add latency</td></tr>
+<tr><td class="c">[16]</td><td>OWASP</td><td>Password storage cheat sheet</td><td>Slow salted hashing guidance</td><td>Defensible credential storage</td><td>Guidance only; no rate limiting</td></tr>
+<tr><td class="c">[17]</td><td>Deng et al., 2009</td><td>ImageNet</td><td>Large-scale labelled image database</td><td>Enabled transfer learning for detection</td><td>General objects, not plates</td></tr>
+<tr><td class="c">[18]</td><td>Paszke et al., 2019</td><td>PyTorch</td><td>Deep-learning framework</td><td>Reproducible training and inference</td><td>Heavy dependency for a small deployment</td></tr>
+<tr><td class="c">[19]</td><td>Laroca et al., 2018</td><td>Real-time ALPR based on YOLO</td><td>End-to-end ALPR with a YOLO detector</td><td>Fast enough for gate use; high recall</td><td>Fixed camera geometry; no authorisation policy</td></tr>
+<tr><td class="c">[20]</td><td>Silva, Jung, 2018</td><td>Plate detection in unconstrained scenarios</td><td>Segmentation-free recognition network</td><td>Robust to viewpoint and lighting</td><td>Computationally heavy for an edge server</td></tr>
+<tr><td class="c">[21]</td><td>Liu et al., 2016</td><td>SSD: single shot multibox detector</td><td>Multi-scale single-stage detection</td><td>Better small-object recall than early YOLO</td><td>Still needs plate-specific training</td></tr>
+<tr><td class="c">[22]</td><td>Simonyan, Zisserman, 2015</td><td>Very deep convolutional networks</td><td>Deep CNN feature extractor</td><td>Strong transfer features</td><td>Large parameter count</td></tr>
+<tr><td class="c">[23]</td><td>Hochreiter, Schmidhuber, 1997</td><td>Long short-term memory</td><td>Recurrent sequence model</td><td>Handles variable-length text lines</td><td>Needs substantial training data</td></tr>
+<tr><td class="c">[24]</td><td>Graves et al., 2006</td><td>Connectionist temporal classification</td><td>Alignment-free sequence decoding</td><td>Removes explicit character segmentation</td><td>Assumes monotonic alignment</td></tr>
+<tr><td class="c">[25]</td><td>Rajabioun, Ioannou, 2015</td><td>Parking availability prediction</td><td>Spatio-temporal multivariate model</td><td>Useful pre-trip advice</td><td>Predicts, does not authorise or bill</td></tr>
+<tr><td class="c">[26]</td><td>Bochkovskiy et al., 2020</td><td>YOLOv4</td><td>Improved single-stage detector</td><td>Strong accuracy at real-time speed</td><td>Heavier than needed for a six-bay lot</td></tr>
+<tr><td class="c">[27]</td><td>Zhou et al., 2017</td><td>EAST scene-text detector</td><td>Direct regression of text regions</td><td>Fast, rotation-aware</td><td>Scene text, not plate-specific</td></tr>
+<tr><td class="c">[28]</td><td>Shi, Bai, Yao, 2017</td><td>End-to-end scene-text recognition</td><td>CRNN with CTC decoding</td><td>Whole-line recognition</td><td>Recognition only; localisation separate</td></tr>
+</tbody>
+</table>
+
+<h2>4.7 Research gaps observed</h2>
+
+<p><b>Gap 1 &mdash; sensing cost scales with the number of bays.</b> Occupancy sensing is the cost driver in smart
+parking, and virtually every published design instruments each bay or each zone [1]. Gate-only occupancy inference is
+used in practice by ticket-based operators, but it is rarely treated as an academic design and its failure modes are
+rarely analysed. No surveyed work quantifies what happens to availability accuracy when the only observation is at
+the boundary of the lot.</p>
+
+<p><b>Gap 2 &mdash; recognition accuracy is reported, decision error is not.</b> ANPR papers usually report a single
+accuracy or a precision/recall pair for the recognition stage [3], [19], [20]. The property that matters for access
+control is the decision error rate &mdash; false admits and false rejects &mdash; under a refusal policy. A system that
+refuses when uncertain has a different error profile from one that always returns its best guess, and the two cannot
+be compared on recognition accuracy alone.</p>
+
+<p><b>Gap 3 &mdash; integration and audit stop short.</b> Prototypes typically demonstrate detection, or allocation, or
+a dashboard, but not recognition, authorisation, actuation, billing and monitoring as one auditable pipeline. The
+evidence behind a decision is usually discarded, so the system cannot explain a refusal after the fact.</p>
+
+<p><b>Gap 4 &mdash; low-cost edge hardware is used as a camera, not as a system component.</b> Many IoT parking
+prototypes put decision logic on the edge node, which makes state consistency across nodes difficult. The alternative
+&mdash; a deliberately stupid edge and a single authoritative server &mdash; is well established in practice but
+under-reported in student work.</p>
+
+<h2>4.8 Conclusive remarks of the survey</h2>
+
+<p>The survey supports three conclusions that shaped the design. First, the sensing architecture, not the recognition
+algorithm, is where the cost of a smart parking system is decided, and a gate-only architecture is a legitimate and
+under-studied alternative for small lots. Second, plate recognition must be treated as evidence with a confidence and
+a failure stage, and the decision to admit must be separated from the recognition itself so that ambiguity can be
+refused rather than guessed. Third, the value of the system depends on the integration: a plate read that is not
+linked to a booking, a bay, a bill and an audit record is a demonstration, not a parking system.</p>
+
+<p>AutoPark addresses the three gaps together: a two-camera architecture whose sensing cost is constant in the number of
+bays, a refusal-by-default authorisation policy with OCR-aware matching, and an end-to-end implementation whose
+decisions are recorded with evidence. The next chapter describes the design concepts that implement these conclusions.</p>
+</div>
+
+<!-- ============================ CHAPTER 5 ============================= -->
+<div class="chapter">
+<h1 class="chapter"><span class="num">Chapter 5</span><span class="mk">@@C05@@</span>Design Concepts Used in the Project</h1>
+
+<p>This chapter explains the design concepts that hold the system together. They are presented as concepts rather than
+as components because each one is a rule that constrains many parts of the implementation: the architecture rule
+decides where state lives, the occupancy rule decides what a bay status means, the refusal rule decides what happens
+when the evidence is weak, and so on. Together they form the conceptual framework within which the algorithms of
+Chapter&nbsp;7 and the implementation of Chapters&nbsp;8&ndash;11 are written.</p>
+
+<h2>5.1 Edge&ndash;gateway architecture with a single source of truth</h2>
+
+<p>AutoPark is an edge&ndash;gateway, event-driven architecture with a thin browser client. The edge tier consists of two
+ESP32-CAM nodes that do exactly two things: capture a JPEG every five seconds and actuate a servo when told to. They
+hold no state about the lot. The application tier is a FastAPI service that owns all decisions &mdash; identity, plate
+matching, bay allocation, billing and audit &mdash; and is the single source of truth. The presentation tier is a
+Next.js application that renders state and reacts to WebSocket events; it never computes occupancy. The data tier is
+SQLite accessed through SQLAlchemy, with five tables.</p>
+
+<p>The important architectural consequence is that cameras are sensors, not controllers. If a camera is replaced, the
+lot state is unaffected. If the backend is down, the barriers fail closed, because the firmware opens the arm only on
+an explicit boolean in the response. If the browser is closed, nothing about the lot changes. Every one of those
+properties follows from putting the state in one place.</p>
+
+<figure class="w90">
+  <img src="../figures/fig-01.png" alt="System context diagram">
+  <figcaption><span class="mk">@@FG01@@</span>Fig. 1 : System context diagram</figcaption>
+</figure>
+
+<h2>5.2 Occupancy as a derived state</h2>
+
+<p>A bay is occupied if and only if an active session references it. This is the central design concept of the project,
+and it is enforced structurally rather than by convention. A bay becomes occupied when the allocator creates a session
+inside a transaction that also changes the bay status; it becomes free when the exit path closes that session inside a
+transaction that also restores the bay status. There is no other writer. The dashboard, the summary endpoint and the
+operator plan all read the same derived value, so they cannot disagree with each other or with the audit trail.</p>
+
+<p>The consequence is a different kind of accuracy claim from a per-bay sensor. A sensor measures the bay continuously
+and is right about the bay even when it is wrong about the vehicle. A derived state is exactly right about the vehicle
+and can be wrong about the bay if an event is missed &mdash; specifically, if a vehicle leaves and its plate is never
+read. The design accepts that failure mode and provides a documented manual release for it, rather than pretending that
+the derived state is as robust as a measurement. The trade is stated in Table&nbsp;20 of Chapter&nbsp;12 and in the
+limitations of Chapter&nbsp;13.</p>
+
+<h2>5.3 Refusal by default</h2>
+
+<p>Authorisation is designed around a simple asymmetry: a false reject costs one retry, while a false admit creates a
+wrong bay, a wrong bill and a corrupted occupancy map. The system therefore refuses whenever the evidence is
+insufficient, and it defines insufficiency numerically rather than intuitively. Four independent gates decide
+admission:</p>
+
+<ol>
+<li>the candidate confidence must be at least 0.75;</li>
+<li>the plate must contain at least four alphanumeric characters;</li>
+<li>the reading must match a pending booking (or a free bay must exist for walk-in entry);</li>
+<li>the best match must be separated from the second-best by at least 0.10 in score.</li>
+</ol>
+
+<p>Because the gates are independent, a failure of one does not silently weaken the others. Ambiguity in particular is
+treated as a first-class outcome: when two bookings are plausible, the system does not pick the higher score, it stops
+and raises an operator alert. This inverts the usual &ldquo;best effort admit&rdquo; behaviour of demonstration ANPR
+systems, and it is the property that makes the system defensible in front of an examiner.</p>
+
+<h2>5.4 OCR-aware matching</h2>
+
+<p>A plate read by a cheap camera is not a string, it is a string plus a set of visual confusions. The letter O and the
+digit 0 are the same shape at low resolution; so are I and 1, S and 5, B and 8, Z and 2, G and 6. The matcher therefore
+canonicalises both the candidate and the registered plate through a confusion map before comparing them, then computes
+a Levenshtein distance on the residual strings, then discounts the resulting similarity by the OCR confidence. The
+formula is:</p>
+
+<p class="center"><i>adjusted</i> = <i>similarity</i> &times; (0.80 + 0.20 &times; <i>c<sub>cand</sub></i>)</p>
+
+<p>with a minimum adjusted score of 0.72 for a match to be considered at all. The confidence factor prevents a
+confident wrong read from being discounted into a match, and the floor of 0.80 prevents a marginal read from
+outranking a strong one. The worked examples in Chapter&nbsp;7 show both a tolerated single-character error and a
+refused ambiguity.</p>
+
+<h2>5.5 Fail-closed actuation</h2>
+
+<p>The barrier has two states and one rule: it opens only when the server says so. The firmware parses the response,
+reads a boolean, and calls the open routine only if that boolean is true; every other outcome &mdash; timeout,
+malformed JSON, HTTP error, missing field &mdash; leaves the arm at zero degrees. The servo is open-loop, so the
+system never claims to know where the arm is; the user interface reports the commanded state and says so. This is a
+deliberate degradation design: the failure of any component between the camera and the server results in a closed
+barrier, which is the safe direction for an access-control device.</p>
+
+<h2>5.6 Event-driven presentation</h2>
+
+<p>Every state transition is published on a single WebSocket channel as a typed event. Clients subscribe once, patch
+their local state, and re-read a REST snapshot after any reconnect, because a stream does not replay missed messages.
+The client is therefore a projection of server state rather than a second source of truth. This is what allows three
+different screens &mdash; the driver dashboard, the pass screen and the operator console &mdash; to stay consistent
+without polling and without duplicating the occupancy logic in the browser.</p>
+
+<h2>5.7 Design decisions and trade-offs</h2>
+
+<p>Table&nbsp;4 records the decisions that shaped the system, the alternatives that were considered, and the trade-off
+that was accepted in each case. The trade-off column is the important one: every decision in this project costs
+something, and the report states the cost rather than hiding it.</p>
+
+<table>
+<caption><span class="mk">@@TB04@@</span>Table 4 : Design decisions, alternatives and accepted trade-offs</caption>
+<thead><tr><th class="c" style="width:6%">ID</th><th style="width:20%">Decision</th><th style="width:18%">Alternatives considered</th><th style="width:29%">Rationale</th><th style="width:27%">Trade-off accepted</th></tr></thead>
+<tbody>
+<tr><td class="c">D1</td><td>Two gate cameras, no bay sensors</td><td>Ultrasonic per bay; overhead vision</td><td>Constant hardware cost; minimal retrofit</td><td>Occupancy depends on plate reads</td></tr>
+<tr><td class="c">D2</td><td>Hybrid pre-booked and walk-in access</td><td>Pre-booked only</td><td>Serves advance reservations and spontaneous arrivals</td><td>Walk-ins cannot take reserved bays</td></tr>
+<tr><td class="c">D3</td><td>Backend owns all state</td><td>Camera-side decisions</td><td>Single source of truth; auditable</td><td>Backend is a single point of failure</td></tr>
+<tr><td class="c">D4</td><td>Refuse on ambiguity</td><td>Best-score admit</td><td>A false admit corrupts occupancy and revenue</td><td>Occasional false rejects</td></tr>
+<tr><td class="c">D5</td><td>SQLite persistence</td><td>PostgreSQL</td><td>Zero operations; adequate for one lot</td><td>Limited write concurrency</td></tr>
+<tr><td class="c">D6</td><td>JWT with bcrypt hashing</td><td>Session cookies</td><td>Stateless API; simple for browser and device</td><td>Token revocation is manual</td></tr>
+<tr><td class="c">D7</td><td>WebSocket push</td><td>Polling</td><td>Instant UI with less load</td><td>Connection lifecycle code</td></tr>
+<tr><td class="c">D8</td><td>Servo barrier on GPIO 12</td><td>Buzzer only</td><td>Physical access control that matches real gates</td><td>5 V current and timer contention</td></tr>
+<tr><td class="c">D9</td><td>Billing computed on the server</td><td>Client-side estimate</td><td>Single authority; receipts cannot be edited</td><td>Recomputation on every exit</td></tr>
+<tr><td class="c">D10</td><td>Simulator endpoints</td><td>Mock user interface only</td><td>Exercises the real database, allocator and billing path</td><td>Simulator can create real sessions</td></tr>
+</tbody>
+</table>
+
+<h2>5.8 Architectural invariants</h2>
+
+<p>The following properties must remain true; violating one is a design regression rather than a bug. They are used as a
+checklist during review and are restated in the conclusion.</p>
+
+<ol>
+<li>No bay is allocated without a plate decision, except through the explicit operator simulator.</li>
+<li>A bay is occupied only while an active session references it.</li>
+<li>Occupancy is never computed in the frontend.</li>
+<li>The barrier opens only on an explicit backend boolean.</li>
+<li>Every entry, exit and refusal writes a detection-event row with evidence.</li>
+<li>A booking always holds a concrete bay identifier, and releasing the booking releases the bay.</li>
+<li>Ambiguity is a refusal, not a coin flip.</li>
+</ol>
+
+<h2>5.9 Data model</h2>
+
+<p>The schema is deliberately small: five tables, each with one responsibility. <i>Users</i> holds credentials and roles;
+<i>parking_slots</i> holds the six bays and their current status; <i>pre_registrations</i> holds bookings and binds a bay;
+<i>parking_sessions</i> holds the interval during which a vehicle is inside; and <i>detection_events</i> holds the
+evidence behind every decision. The session table is the authority for occupancy, and the detection-event table is the
+authority for why a decision was taken. Keeping them separate is what makes the audit trail possible without
+duplicating state. The entity&ndash;relationship diagram is given as Fig.&nbsp;9 in Chapter&nbsp;10, where the data
+design is discussed together with the rest of the methodology.</p>
+</div>
